@@ -575,7 +575,7 @@ abstract class AppLocalizations {
   /// No description provided for @ocrValidationNote.
   ///
   /// In en, this message translates to:
-  /// **'Text review does not constitute physician clinical validation. OCR is simulated.'**
+  /// **'Confirming extracted text does not validate clinical content.'**
   String get ocrValidationNote;
 
   /// No description provided for @wardOverview.
@@ -965,13 +965,13 @@ abstract class AppLocalizations {
   /// No description provided for @cameraUnavailable.
   ///
   /// In en, this message translates to:
-  /// **'Camera unavailable. Check browser permissions and device access, or choose the synthetic sample.'**
+  /// **'Camera unavailable. Check browser permissions and device access, then retry.'**
   String get cameraUnavailable;
 
   /// No description provided for @microphoneUnavailable.
   ///
   /// In en, this message translates to:
-  /// **'Microphone unavailable. Check permissions and device access, or choose the synthetic sample.'**
+  /// **'Microphone unavailable. Check permissions and device access, then retry.'**
   String get microphoneUnavailable;
 
   /// No description provided for @cameraInterrupted.
@@ -989,7 +989,7 @@ abstract class AppLocalizations {
   /// No description provided for @recordingFailed.
   ///
   /// In en, this message translates to:
-  /// **'Recording failed. Nothing has been attached. You can retry or choose the synthetic sample.'**
+  /// **'Recording failed. Nothing has been attached. Please retry.'**
   String get recordingFailed;
 
   /// No description provided for @capturePhoto.
@@ -1025,7 +1025,7 @@ abstract class AppLocalizations {
   /// No description provided for @transcriptHint.
   ///
   /// In en, this message translates to:
-  /// **'Type and review your own transcript. Automatic transcription is not connected.'**
+  /// **'Type and review your transcript before attaching the voice note.'**
   String get transcriptHint;
 
   /// No description provided for @useSamplePhoto.
@@ -1067,7 +1067,7 @@ abstract class AppLocalizations {
   /// No description provided for @syntheticMedia.
   ///
   /// In en, this message translates to:
-  /// **'Synthetic sample · demo only'**
+  /// **'Sample attachment'**
   String get syntheticMedia;
 
   /// No description provided for @attachedPhoto.
@@ -1295,7 +1295,7 @@ abstract class AppLocalizations {
   /// No description provided for @assistantBoundary.
   ///
   /// In en, this message translates to:
-  /// **'Uses current demo records. No clinical advice or automatic actions.'**
+  /// **'Uses records you are authorized to access. No clinical advice or automatic actions.'**
   String get assistantBoundary;
 
   /// No description provided for @suggestUnresolved.
@@ -2161,6 +2161,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Saving draft…'**
   String get savingDraft;
+
+  /// No description provided for @accountSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Account settings'**
+  String get accountSettings;
+
+  /// No description provided for @accountSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your profile and assigned ward context.'**
+  String get accountSubtitle;
+
+  /// No description provided for @professionalRole.
+  ///
+  /// In en, this message translates to:
+  /// **'Professional role'**
+  String get professionalRole;
+
+  /// No description provided for @assignedWards.
+  ///
+  /// In en, this message translates to:
+  /// **'Assigned wards'**
+  String get assignedWards;
+
+  /// No description provided for @accountTimeZone.
+  ///
+  /// In en, this message translates to:
+  /// **'Facility time zone'**
+  String get accountTimeZone;
+
+  /// No description provided for @currentWard.
+  ///
+  /// In en, this message translates to:
+  /// **'Current ward'**
+  String get currentWard;
+
+  /// No description provided for @developmentTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Development tools'**
+  String get developmentTools;
+
+  /// No description provided for @checkedOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Checked out'**
+  String get checkedOut;
+
+  /// No description provided for @shiftCardSchedule.
+  ///
+  /// In en, this message translates to:
+  /// **'{shift} shift  ·  {start}–{end}'**
+  String shiftCardSchedule(Object end, Object shift, Object start);
+
+  /// No description provided for @availabilityavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Available'**
+  String get availabilityavailable;
+
+  /// No description provided for @availabilitybusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Busy'**
+  String get availabilitybusy;
+
+  /// No description provided for @availabilityonBreak.
+  ///
+  /// In en, this message translates to:
+  /// **'On break'**
+  String get availabilityonBreak;
+
+  /// No description provided for @documentOriginal.
+  ///
+  /// In en, this message translates to:
+  /// **'Original document · extracted text'**
+  String get documentOriginal;
 }
 
 class _AppLocalizationsDelegate

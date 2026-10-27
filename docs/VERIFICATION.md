@@ -5,9 +5,9 @@ Executed in the cloud on 27 October 2026 using Flutter 3.47.8, Dart 3.13.7 and C
 | Check | Actual result |
 | --- | --- |
 | `flutter pub get` / `flutter gen-l10n` | Passed; lockfile and generated ARB accessors included. |
-| `dart format --output=none --set-exit-if-changed lib test integration_test test_driver` | Passed; 23 Dart files, no formatting changes. |
+| `dart format --output=none --set-exit-if-changed lib test integration_test test_driver` | Passed; 26 Dart files, no formatting changes. |
 | `flutter analyze` | Passed: no issues. |
-| `flutter test --reporter expanded` | **33 passed**: 27 domain/persistence tests and 6 widget tests. No skipped tests. |
+| `flutter test --reporter expanded` | **39 passed**: 27 domain/persistence tests and 12 widget tests. No skipped tests. |
 | Browser integration through Flutter drive | **1 passed**, zero framework errors. Actual UI report → inbox → event conversation (does not claim) → explicit claim → diary → handover sources/amendment. |
 | `./tool/build_web.sh` | Passed release web compilation, local engine/font assets, 46-file static-shell cache. The compiler's optional WASM dry run also succeeded; a dedicated `--wasm` deployment was not exercised. |
 | `python3 tool/smoke_web.py` against the served release build | Passed startup, real attendance change, refresh persistence, service-worker installation, complete offline reopening, 390px mobile navigation/report and no JavaScript page errors. |
@@ -17,7 +17,7 @@ Executed in the cloud on 27 October 2026 using Flutter 3.47.8, Dart 3.13.7 and C
 
 The domain tests exercise role/ward isolation, on-duty/availability eligibility, idempotency, atomic responsibility, escalation, offline synchronization and revoked permissions, original-preserving amendments, OCR review separation, handover review/validation/signature/acknowledgement, real SQLite close/reopen with drafts/outbox/media, IANA shift boundaries including 9/11-hour DST nights, explicit multiple ward roles, and stale queued operations across persona changes.
 
-Widget checks include 360px width and increased text scale, expanded console navigation, visible report submission, management/admin clinical deep-link guards, and clearing old clinical navigation on persona changes.
+Widget checks include 360px width and increased text scale, expanded console navigation, visible report submission, management/admin clinical deep-link guards, and clearing old clinical navigation on persona changes. The Home refresh additionally verifies live availability/check-in/check-out updates, routing eligibility, pending-save double-click prevention, removal of demo labels and connection badges, account context, and blocked development-only routes in default builds.
 
 ## Reproduce the browser integration
 

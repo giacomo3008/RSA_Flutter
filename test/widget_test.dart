@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -161,4 +162,203 @@ void main() {
     expect(find.byType(EventDetailScreen), findsNothing);
     expect(find.byKey(const Key('open-report')), findsNothing);
   });
+
+  Future<void> drainUpdates(WidgetTester tester, bool Function() ready) async {
+    for (var attempt = 0; attempt < 100; attempt++) {
+      await tester.pump();
+      if (ready() &&
+          find.byType(CircularProgressIndicator).evaluate().isEmpty) {
+        break;
+      }
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+    }
+    await tester.pumpAndSettle();
+    expect(
+      ready(),
+      isTrue,
+      reason: 'The persisted UI action did not complete.',
+    );
+  }
+
+  for (final size in [const Size(360, 950), const Size(1440, 1000)]) {
+    testWidgets('home is free of demo controls at ${size.width}px', (
+      tester,
+    ) async {
+      await showApp(tester, size: size, textScale: size.width < 500 ? 1.3 : 1);
+      expect(find.text('Demo data'), findsNothing);
+      expect(find.text('Demo controls'), findsNothing);
+      expect(find.text('Connected'), findsNothing);
+      expect(find.text('A connected shift. A shared picture.'), findsNothing);
+      expect(find.textContaining('Demo workspace'), findsNothing);
+      expect(find.byTooltip('Open demo controls'), findsNothing);
+      expect(repository.currentUser.onDuty, isTrue);
+      expect(repository.currentUser.availability, Availability.available);
+      final card = find.byKey(const Key('shift-attendance-card'));
+      expect(card, findsOneWidget);
+      expect(
+        find.descendant(
+          of: card,
+          matching: find.text(repository.activeWard.name),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: card,
+          matching: find.text(repository.currentUser.role.label),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: card,
+          matching: find.textContaining(
+            formatTime(repository.currentShift.startsAt),
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: card,
+          matching: find.textContaining(
+            formatTime(repository.currentShift.endsAt),
+          ),
+        ),
+        findsOneWidget,
+      );
+    });
+  }
+
+  testWidgets(
+    'home availability and attendance controls update shared routing state',
+    (tester) async {
+      await showApp(tester, size: const Size(1440, 1000));
+      final card = find.byKey(const Key('shift-attendance-card'));
+      final event = repository.eventById('event-fall')!;
+      for (final availability in [
+        Availability.busy,
+        Availability.onBreak,
+        Availability.available,
+      ]) {
+        await tester.runAsync(
+          () =>
+              tester.tap(find.byKey(Key('availability-${availability.name}'))),
+        );
+        await drainUpdates(
+          tester,
+          () => repository.currentUser.availability == availability,
+        );
+        if (availability == Availability.onBreak) {
+          expect(
+            repository
+                .eligibleRecipients(event)
+                .any((s) => s.id == repository.currentUser.id),
+            isFalse,
+          );
+        }
+      }
+      expect(repository.currentUser.onDuty, isTrue);
+      await tester.runAsync(
+        () => tester.tap(find.byKey(const Key('shift-toggle-attendance'))),
+      );
+      await drainUpdates(tester, () => !repository.currentUser.onDuty);
+      expect(
+        find.descendant(of: card, matching: find.text('Check in')),
+        findsOneWidget,
+      );
+      expect(
+        repository
+            .eligibleRecipients(event)
+            .any((s) => s.id == repository.currentUser.id),
+        isFalse,
+      );
+      await tester.runAsync(
+        () => tester.tap(find.byKey(const Key('shift-toggle-attendance'))),
+      );
+      await drainUpdates(tester, () => repository.currentUser.onDuty);
+      expect(
+        find.descendant(of: card, matching: find.text('Check out')),
+        findsOneWidget,
+      );
+      expect(
+        repository
+            .eligibleRecipients(event)
+            .any((s) => s.id == repository.currentUser.id),
+        isTrue,
+      );
+    },
+  );
+
+  testWidgets('attendance remains a single action while its save is pending', (
+    tester,
+  ) async {
+    late _DelayedAttendanceRepository delayed;
+    await tester.runAsync(() async {
+      await repository.close();
+      delayed = _DelayedAttendanceRepository(
+        RsaDatabase(NativeDatabase.memory()),
+      );
+      await delayed.initialize();
+      repository = delayed;
+    });
+    addTearDown(() {
+      if (!delayed.saveGate.isCompleted) delayed.saveGate.complete();
+    });
+    await showApp(tester, size: const Size(1440, 1000));
+    final button = find.byKey(const Key('shift-toggle-attendance'));
+    await tester.runAsync(() => tester.tap(button));
+    await tester.pump();
+    expect(delayed.toggleCalls, 1);
+    expect(repository.currentUser.onDuty, isTrue);
+    await tester.runAsync(() => tester.tap(button));
+    await tester.runAsync(
+      () => tester.tap(find.byKey(const Key('availability-busy'))),
+    );
+    await tester.pump();
+    expect(delayed.toggleCalls, 1);
+    expect(repository.currentUser.availability, Availability.available);
+    delayed.saveGate.complete();
+    await drainUpdates(tester, () => !repository.currentUser.onDuty);
+  });
+
+  testWidgets(
+    'account settings do not expose role switching or development tools',
+    (tester) async {
+      await showApp(tester, location: '/settings');
+      expect(find.text('Demo persona'), findsNothing);
+      expect(find.text('Reset demo data'), findsNothing);
+      expect(find.text(repository.currentUser.name), findsWidgets);
+      expect(find.text(repository.activeWard.name), findsWidgets);
+      expect(find.text('Europe/Rome'), findsWidgets);
+    },
+  );
+
+  testWidgets(
+    'development controls cannot be opened through a default-build deep link',
+    (tester) async {
+      await showApp(tester, location: '/development');
+      expect(find.text('Demo persona'), findsNothing);
+      expect(find.text('Reset demo data'), findsNothing);
+      final location = GoRouter.of(
+        tester.element(find.byType(Scaffold).first),
+      ).routeInformationProvider.value.uri.path;
+      expect(location, isNot('/development'));
+    },
+  );
+}
+
+class _DelayedAttendanceRepository extends RsaRepository {
+  final saveGate = Completer<void>();
+  int toggleCalls = 0;
+  _DelayedAttendanceRepository(super.database)
+    : super(clock: () => DateTime.utc(2026, 10, 27, 8));
+  @override
+  Future<void> toggleAttendance() async {
+    toggleCalls++;
+    await saveGate.future;
+    await super.toggleAttendance();
+  }
 }

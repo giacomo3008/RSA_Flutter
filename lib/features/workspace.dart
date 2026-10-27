@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../core/models.dart';
 import '../core/providers.dart';
 import '../shared/ui.dart';
+import 'shift_attendance_card.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -28,53 +29,7 @@ class HomeScreen extends ConsumerWidget {
             label: Text(tr(context, 'reportEvent')),
           ),
         ),
-        SectionCard(
-          padding: const EdgeInsets.all(20),
-          child: Wrap(
-            spacing: 24,
-            runSpacing: 16,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: teal.withValues(alpha: .09),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.wb_sunny_outlined, color: teal),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${r.activeWard.name} · ${r.currentShift.label}',
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '${formatTime(r.currentShift.startsAt)} – ${formatTime(r.currentShift.endsAt)}  ·  ${formatDate(r.now)}',
-                    style: const TextStyle(fontSize: 12, color: muted),
-                  ),
-                ],
-              ),
-              StatusPill(
-                label: tr(
-                  context,
-                  r.currentUser.onDuty ? 'checkedIn' : 'offDuty',
-                ),
-                icon: r.currentUser.onDuty
-                    ? Icons.check_circle_outline
-                    : Icons.schedule,
-              ),
-              OutlinedButton(
-                onPressed: () => runAction(context, r.toggleAttendance),
-                child: Text(
-                  tr(context, r.currentUser.onDuty ? 'checkOut' : 'checkIn'),
-                ),
-              ),
-            ],
-          ),
-        ),
+        const ShiftAttendanceCard(),
         const SizedBox(height: 24),
         LayoutBuilder(
           builder: (context, c) => Wrap(
@@ -301,10 +256,6 @@ class HomeScreen extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 24),
-        Text(
-          tr(context, 'demoFooter'),
-          style: const TextStyle(color: muted, fontSize: 11),
-        ),
         const SizedBox(height: 16),
       ],
     );
@@ -771,10 +722,6 @@ class _HandoverScreenState extends ConsumerState<HandoverScreen> {
                 ),
               ],
               const SizedBox(height: 12),
-              Text(
-                tr(context, 'demoSignatureNote'),
-                style: const TextStyle(color: muted, fontSize: 11),
-              ),
             ],
           ),
         ),
@@ -854,7 +801,7 @@ class _OcrScreenState extends ConsumerState<OcrScreen> {
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  tr(context, 'syntheticDocument'),
+                  tr(context, 'documentOriginal'),
                   style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 12),

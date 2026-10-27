@@ -5,11 +5,13 @@ import '../core/models.dart';
 import '../core/providers.dart';
 import '../core/repository.dart';
 import '../features/chat.dart';
+import '../features/account.dart';
 import '../features/events.dart';
 import '../features/workspace.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../shared/ui.dart';
 import 'theme.dart';
+import 'environment.dart';
 
 /// A new navigation scope prevents retained tabs from exposing a previous persona.
 class RsaApp extends ConsumerStatefulWidget {
@@ -67,6 +69,9 @@ class _RsaAppState extends ConsumerState<RsaSessionApp>
             : '/admin';
         if (path == '/') return landing;
         if (path == '/settings') return null;
+        if (path == '/development') {
+          return developmentToolsEnabled ? null : landing;
+        }
         if (!care && !['/management', '/admin'].contains(path)) return landing;
         if (path == '/management' && !r.can(Capability.management)) {
           return landing;
@@ -186,7 +191,17 @@ class _RsaAppState extends ConsumerState<RsaSessionApp>
               routes: [
                 GoRoute(
                   path: '/settings',
-                  builder: (context, state) => const SettingsScreen(),
+                  builder: (context, state) => const AccountScreen(),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/development',
+                  builder: (context, state) => developmentToolsEnabled
+                      ? const SettingsScreen()
+                      : const AccountScreen(),
                 ),
               ],
             ),
@@ -351,10 +366,6 @@ class _Sidebar extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.only(left: 26, bottom: 20),
-          child: StatusPill(label: tr(context, 'demoData')),
-        ),
-        Padding(
           padding: const EdgeInsets.only(left: 26, bottom: 16),
           child: Text(
             tr(context, 'workspace'),
@@ -444,7 +455,7 @@ class _Sidebar extends StatelessWidget {
             ),
           ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
@@ -455,6 +466,11 @@ class _Sidebar extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(
+                  tr(context, 'currentWard'),
+                  style: const TextStyle(fontSize: 11, color: muted),
+                ),
+                const SizedBox(height: 8),
                 Row(
                   children: [
                     const Icon(Icons.apartment_outlined, size: 17, color: teal),
@@ -470,30 +486,22 @@ class _Sidebar extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 9),
-                Text(
-                  tr(context, 'helpNote'),
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: muted,
-                    height: 1.7,
-                  ),
-                ),
               ],
             ),
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 10, 14, 18),
-          child: TextButton.icon(
-            onPressed: () => context.go('/settings'),
-            icon: const Icon(Icons.tune, size: 16, color: muted),
-            label: Text(
-              tr(context, 'demoControls'),
-              style: const TextStyle(fontSize: 11, color: muted),
+        if (developmentToolsEnabled)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 18),
+            child: TextButton.icon(
+              onPressed: () => context.go('/development'),
+              icon: const Icon(Icons.code, size: 16, color: muted),
+              label: Text(
+                tr(context, 'developmentTools'),
+                style: const TextStyle(fontSize: 11, color: muted),
+              ),
             ),
           ),
-        ),
       ],
     ),
   );
@@ -595,7 +603,6 @@ class _Header extends StatelessWidget {
                   'RSA',
                   style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20),
                 ),
-                StatusPill(label: tr(context, 'demoData')),
               ] else ...[
                 Text(
                   tr(context, 'currentWorkspace'),
@@ -608,11 +615,6 @@ class _Header extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                StatusPill(
-                  label: tr(context, repo.online ? 'online' : 'offline'),
-                  icon: repo.online ? Icons.wifi : Icons.wifi_off,
-                  color: repo.online ? teal : const Color(0xff9a691d),
-                ),
               ],
             ],
           ),
@@ -624,14 +626,14 @@ class _Header extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           IconButton(
-            tooltip: tr(context, 'openDemoControls'),
+            tooltip: tr(context, 'accountSettings'),
             onPressed: () => context.go('/settings'),
             icon: const Icon(Icons.tune, size: 20, color: muted),
           ),
         ],
         const SizedBox(width: 8),
         Semantics(
-          label: tr(context, 'demoPersonaShort'),
+          label: tr(context, 'accountSettings'),
           button: true,
           child: InkWell(
             onTap: () => context.go('/settings'),
