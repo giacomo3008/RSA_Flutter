@@ -9,7 +9,7 @@
 - [x] Team/direct/event/private assistant chat, replies/search, media, unread state and confirmed message-to-event drafts.
 - [x] Deterministic assistant retrieval with tappable authorized source links; no external model calls.
 - [x] Searchable diary and original-preserving amendments/version history.
-- [x] Simulated OCR extraction review; original text retained; clinical validation separate.
+- [ ] Document review screen deferred: navigation and screen removed; underlying OCR data model retained for future work.
 - [x] Handover contributions, source links, review, physician validation where required, coordinator signature, amendments and assigned incoming acknowledgements.
 - [x] Coordinator attendance/skills board; management aggregate filters; administrator assignment/integration/routing/audit views.
 - [x] English ARB/localization, Italian fallback scaffold, UTC storage and IANA Europe/Rome display/shift boundaries.

@@ -6,6 +6,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:record/record.dart';
 
+import '../app/environment.dart';
 import '../core/media.dart';
 import 'ui.dart';
 
@@ -354,7 +355,7 @@ class _CaptureDialogState extends State<_CaptureDialog>
                   ),
                 ),
               ],
-              if (!_loading && !_recording) ...[
+              if (developmentToolsEnabled && !_loading && !_recording) ...[
                 const SizedBox(height: 16),
                 TextButton.icon(
                   onPressed: () => setState(() {

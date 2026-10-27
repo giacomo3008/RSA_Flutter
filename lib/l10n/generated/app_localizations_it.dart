@@ -265,7 +265,7 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get ocrValidationNote =>
-      'Text review does not constitute physician clinical validation. OCR is simulated.';
+      'Confirming extracted text does not validate clinical content.';
 
   @override
   String get wardOverview => 'Ward overview';
@@ -473,11 +473,11 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get cameraUnavailable =>
-      'Camera unavailable. Check browser permissions and device access, or choose the synthetic sample.';
+      'Camera unavailable. Check browser permissions and device access, then retry.';
 
   @override
   String get microphoneUnavailable =>
-      'Microphone unavailable. Check permissions and device access, or choose the synthetic sample.';
+      'Microphone unavailable. Check permissions and device access, then retry.';
 
   @override
   String get cameraInterrupted =>
@@ -489,7 +489,7 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get recordingFailed =>
-      'Recording failed. Nothing has been attached. You can retry or choose the synthetic sample.';
+      'Recording failed. Nothing has been attached. Please retry.';
 
   @override
   String get capturePhoto => 'Capture photo';
@@ -508,7 +508,7 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get transcriptHint =>
-      'Type and review your own transcript. Automatic transcription is not connected.';
+      'Type and review your transcript before attaching the voice note.';
 
   @override
   String get useSamplePhoto => 'Use synthetic photo sample';
@@ -529,7 +529,7 @@ class AppLocalizationsIt extends AppLocalizations {
   String get attachMedia => 'Attach';
 
   @override
-  String get syntheticMedia => 'Synthetic sample · demo only';
+  String get syntheticMedia => 'Sample attachment';
 
   @override
   String get attachedPhoto => 'Attached event photo';
@@ -647,7 +647,7 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get assistantBoundary =>
-      'Uses current demo records. No clinical advice or automatic actions.';
+      'Uses records you are authorized to access. No clinical advice or automatic actions.';
 
   @override
   String get suggestUnresolved => 'Show unresolved events in my ward.';
@@ -1104,4 +1104,45 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get savingDraft => 'Saving draft…';
+
+  @override
+  String get accountSettings => 'Account settings';
+
+  @override
+  String get accountSubtitle => 'Your profile and assigned ward context.';
+
+  @override
+  String get professionalRole => 'Professional role';
+
+  @override
+  String get assignedWards => 'Assigned wards';
+
+  @override
+  String get accountTimeZone => 'Facility time zone';
+
+  @override
+  String get currentWard => 'Current ward';
+
+  @override
+  String get developmentTools => 'Development tools';
+
+  @override
+  String get checkedOut => 'Checked out';
+
+  @override
+  String shiftCardSchedule(Object end, Object shift, Object start) {
+    return '$shift shift  ·  $start–$end';
+  }
+
+  @override
+  String get availabilityavailable => 'Available';
+
+  @override
+  String get availabilitybusy => 'Busy';
+
+  @override
+  String get availabilityonBreak => 'On break';
+
+  @override
+  String get documentOriginal => 'Original document · extracted text';
 }

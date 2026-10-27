@@ -1,6 +1,6 @@
 # RSA
 
-A phone-first Flutter care coordination prototype for Android, iOS, and the web. One shared repository connects reporting, routing, responsibility, chat, the ward diary, OCR review, and shift handovers. All people, residents, messages, and care records are fictional.
+A phone-first Flutter care coordination prototype for Android, iOS, and the web. One shared repository connects reporting, routing, responsibility, chat, the ward diary, and shift handovers. All people, residents, messages, and care records are fictional.
 
 **Synthetic data only.** This frontend is not configured for real health data. Authorization and audit behavior demonstrate a workflow; client-side checks and local SQLite are not production security boundaries.
 
@@ -30,9 +30,17 @@ The server provides SQLite WASM MIME types and cross-origin isolation headers. S
 
 Android needs an Android SDK, Java, and a device/emulator; the app sets a minimum API of at least 23. iOS needs macOS, Xcode, and the relevant simulator/device SDKs. Physical-device signing and the final application identifier require local configuration. Camera and microphone permission descriptions are included in both platform projects. Native capture, TalkBack, VoiceOver, and app lifecycle behavior still require device validation.
 
-## Explore the demo
+## Account and development fixtures
 
-Use the profile avatar or **Demo controls** to change synthetic persona, select an assigned ward, simulate connectivity, advance escalation time, or reset synthetic records. This selector is a demo utility, not authentication.
+The standard interface shows operational controls without demo badges, a connection badge, or persona-switching tools. The Home shift card shows the current ward, shift hours, professional role, check-in/out and availability. The sidebar identifies the current ward without a slogan or placeholder image. Open the profile avatar for account details and assigned-ward selection.
+
+Synthetic fixtures still back the frontend until the real backend is connected. Development utilities are excluded from normal navigation and blocked by the default route guard. To intentionally enable persona switching, time advancement, connectivity simulation, reset, and sample-media capture during development, launch:
+
+```sh
+flutter run -d chrome --dart-define=RSA_DEVELOPMENT_TOOLS=true
+```
+
+Open **Development tools** in that explicitly enabled desktop build (or navigate to `/development`). These tools are not authentication and should not be enabled for the deployed staff interface. The role examples and walkthrough below refer to this development-only mode.
 
 | Persona | What to try |
 | --- | --- |
@@ -69,7 +77,7 @@ Web selects a supported durable browser storage mode. An in-memory-only result p
 
 The demo connectivity switch controls delivery simulation; it does not prove remote service reachability. Queued is never delivered. Original occurrence, registration and synchronization timestamps are distinct UTC instants. Display and morning/afternoon/night boundaries use `timezone` IANA data for **Europe/Rome**, including daylight-saving transitions.
 
-Media capture requests permission on use. Camera preview supports retake/attach; recording supports stop/playback/discard and durable WAV bytes. No intentional gallery writes are made. If hardware or permissions are unavailable, explicitly choose a labeled synthetic photo or tone. Synthetic transcripts are labeled; OCR is simulated and retains the original extraction and human review separately. Physical-device media/permission behavior has not been certified by web checks.
+Media capture requests permission on use. Camera preview supports retake/attach; recording supports stop/playback/discard and durable WAV bytes. No intentional gallery writes are made. If hardware or permissions are unavailable, the standard interface reports the failure and offers retry. Explicitly labeled sample-photo/tone controls are available only with development tools enabled. Document review is currently removed from navigation and screens. Its simulated OCR data adapter is retained for possible future integration. Physical-device media/permission behavior has not been certified by web checks.
 
 ## Architecture and backend replacement
 
@@ -108,7 +116,7 @@ flutter drive --driver=test_driver/integration_test.dart \
   --chrome-binary=/path/to/chrome --headless
 ```
 
-In the cloud, Chromium is `/usr/bin/chromium`; add `--web-browser-flag=--no-sandbox --web-browser-flag=--disable-dev-shm-usage`. The isolated integration browser resets synthetic data in its own origin/profile. Unit/widget tests use an independent database. The cloud verification passed **33 unit/widget tests**, the browser integration flow, the release build and offline-reopening smoke check. See [verification results](docs/VERIFICATION.md) for actual outcomes, and [scope checklist](docs/CHECKLIST.md) for limitations.
+In the cloud, Chromium is `/usr/bin/chromium`; add `--web-browser-flag=--no-sandbox --web-browser-flag=--disable-dev-shm-usage`. The isolated integration browser resets synthetic data in its own origin/profile. Unit/widget tests use an independent database. The cloud verification passed **39 unit/widget tests**, the browser integration flow, the release build and offline-reopening smoke check. See [verification results](docs/VERIFICATION.md) for actual outcomes, and [scope checklist](docs/CHECKLIST.md) for limitations.
 
 ## Prototype boundaries
 
