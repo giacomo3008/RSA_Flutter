@@ -86,6 +86,8 @@ class _RsaAppState extends ConsumerState<RsaSessionApp>
       },
       routes: [
         GoRoute(path: '/', redirect: (context, state) => '/home'),
+        // Retired workspace: old bookmarks return to the role's landing page.
+        GoRoute(path: '/ocr', redirect: (context, state) => '/'),
         GoRoute(
           path: '/report',
           builder: (context, state) => ReportScreen(
@@ -202,14 +204,6 @@ class _RsaAppState extends ConsumerState<RsaSessionApp>
                   builder: (context, state) => developmentToolsEnabled
                       ? const SettingsScreen()
                       : const AccountScreen(),
-                ),
-              ],
-            ),
-            StatefulShellBranch(
-              routes: [
-                GoRoute(
-                  path: '/ocr',
-                  builder: (context, state) => const OcrScreen(),
                 ),
               ],
             ),
@@ -410,12 +404,6 @@ class _Sidebar extends StatelessWidget {
                   '/handover',
                 ),
                 _nav(context, Icons.badge_outlined, 'myShift', '/shift'),
-                _nav(
-                  context,
-                  Icons.document_scanner_outlined,
-                  'documentReview',
-                  '/ocr',
-                ),
               ],
               if (repo.can(Capability.coordination))
                 _nav(

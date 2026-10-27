@@ -385,7 +385,6 @@ class MoreScreen extends StatelessWidget {
         (Icons.menu_book_outlined, 'wardDiary', '/diary'),
         (Icons.swap_horiz, 'shiftHandover', '/handover'),
         (Icons.badge_outlined, 'myShift', '/shift'),
-        (Icons.document_scanner_outlined, 'documentReview', '/ocr'),
       ])
         Padding(
           padding: const EdgeInsets.only(bottom: 14),
@@ -760,122 +759,6 @@ Future<String?> _textDialog(
   );
   controller.dispose();
   return result;
-}
-
-class OcrScreen extends ConsumerStatefulWidget {
-  const OcrScreen({super.key});
-  @override
-  ConsumerState<OcrScreen> createState() => _OcrScreenState();
-}
-
-class _OcrScreenState extends ConsumerState<OcrScreen> {
-  final edits = <String, TextEditingController>{};
-  @override
-  void dispose() {
-    for (final e in edits.values) {
-      e.dispose();
-    }
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final r = ref.watch(rsaRepositoryProvider);
-    return ListView(
-      children: [
-        PageHeading(
-          title: tr(context, 'documentReview'),
-          subtitle: tr(context, 'ocrSubtitle'),
-        ),
-        for (final item in r.ocrItems)
-          SectionCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                StatusPill(
-                  label: tr(
-                    context,
-                    item.reviewedAt == null ? 'needsReview' : 'reviewed',
-                  ),
-                  icon: Icons.document_scanner_outlined,
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  tr(context, 'documentOriginal'),
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(26),
-                  decoration: BoxDecoration(
-                    color: const Color(0xfffcfaf4),
-                    border: Border.all(color: const Color(0xffe7e0ce)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.description_outlined, color: muted),
-                      const SizedBox(height: 14),
-                      Text(
-                        item.originalText,
-                        style: const TextStyle(height: 1.8),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        tr(context, 'uncertainValue'),
-                        style: const TextStyle(
-                          color: Color(0xff9a691d),
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: edits.putIfAbsent(
-                    item.id,
-                    () => TextEditingController(
-                      text: item.correctedText ?? item.originalText,
-                    ),
-                  ),
-                  minLines: 4,
-                  maxLines: 8,
-                  readOnly: item.reviewedAt != null,
-                  decoration: InputDecoration(
-                    labelText: tr(context, 'extractedText'),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                if (item.reviewedAt == null)
-                  FilledButton.icon(
-                    onPressed: () => runAction(
-                      context,
-                      () => r.confirmOcr(item.id, edits[item.id]!.text),
-                    ),
-                    icon: const Icon(Icons.check),
-                    label: Text(tr(context, 'confirmExtracted')),
-                  ),
-                if (item.reviewedAt != null)
-                  Text(
-                    tr(context, 'reviewedBy', {
-                      'name':
-                          r.staffById(item.reviewedBy!)?.name ??
-                          item.reviewedBy!,
-                    }),
-                  ),
-                const SizedBox(height: 12),
-                Text(
-                  tr(context, 'ocrValidationNote'),
-                  style: const TextStyle(color: muted, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
 }
 
 class CoordinationScreen extends ConsumerWidget {

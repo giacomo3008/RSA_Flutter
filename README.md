@@ -1,6 +1,6 @@
 # RSA
 
-A phone-first Flutter care coordination prototype for Android, iOS, and the web. One shared repository connects reporting, routing, responsibility, chat, the ward diary, OCR review, and shift handovers. All people, residents, messages, and care records are fictional.
+A phone-first Flutter care coordination prototype for Android, iOS, and the web. One shared repository connects reporting, routing, responsibility, chat, the ward diary, and shift handovers. All people, residents, messages, and care records are fictional.
 
 **Synthetic data only.** This frontend is not configured for real health data. Authorization and audit behavior demonstrate a workflow; client-side checks and local SQLite are not production security boundaries.
 
@@ -77,7 +77,7 @@ Web selects a supported durable browser storage mode. An in-memory-only result p
 
 The demo connectivity switch controls delivery simulation; it does not prove remote service reachability. Queued is never delivered. Original occurrence, registration and synchronization timestamps are distinct UTC instants. Display and morning/afternoon/night boundaries use `timezone` IANA data for **Europe/Rome**, including daylight-saving transitions.
 
-Media capture requests permission on use. Camera preview supports retake/attach; recording supports stop/playback/discard and durable WAV bytes. No intentional gallery writes are made. If hardware or permissions are unavailable, the standard interface reports the failure and offers retry. Explicitly labeled sample-photo/tone controls are available only with development tools enabled. OCR remains simulated in the data adapter and retains the original extraction and human review separately. Physical-device media/permission behavior has not been certified by web checks.
+Media capture requests permission on use. Camera preview supports retake/attach; recording supports stop/playback/discard and durable WAV bytes. No intentional gallery writes are made. If hardware or permissions are unavailable, the standard interface reports the failure and offers retry. Explicitly labeled sample-photo/tone controls are available only with development tools enabled. Document review is currently removed from navigation and screens. Its simulated OCR data adapter is retained for possible future integration. Physical-device media/permission behavior has not been certified by web checks.
 
 ## Architecture and backend replacement
 
