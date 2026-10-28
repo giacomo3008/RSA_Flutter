@@ -40,7 +40,7 @@ Synthetic fixtures still back the frontend until the real backend is connected. 
 flutter run -d chrome --dart-define=RSA_DEVELOPMENT_TOOLS=true
 ```
 
-Open **Development tools** in that explicitly enabled desktop build (or navigate to `/development`). These tools are not authentication and should not be enabled for the deployed staff interface. The role examples and walkthrough below refer to this development-only mode.
+Open **Development tools** in that explicitly enabled desktop build (or navigate to `/development`). These tools are not authentication and should not be enabled for the deployed staff interface. The role examples and walkthrough below refer to this development-only mode. All seven professional interfaces are capability-based; the official interface does not allow an account to grant itself another identity or role. Corporate SSO/MFA and the authenticated session will be supplied by the backend. See [role interfaces](docs/ROLE_INTERFACES.md).
 
 | Persona | What to try |
 | --- | --- |
@@ -54,7 +54,7 @@ Open **Development tools** in that explicitly enabled desktop build (or navigate
 | Mia Thompson / Noah Parker / Amelia Hayes | Compare off-duty, busy, and on-break nursing eligibility. |
 | Lucas Bennett — Willow nurse | Inspect the separate Willow Ward scope and incoming acknowledgement. |
 
-The initial Oak handover is signed and awaits assigned incoming staff acknowledgement. Emily can acknowledge that version. Creating a new source after signature preserves the signed snapshot and starts an amendment requiring review and a new signature.
+The initial Oak handover is signed and awaits assigned incoming staff acknowledgement. Emily can acknowledge that version. The handover workspace includes a shift transition banner, lifecycle, open priority alerts, an editable source-based draft, linked reports, contributions and incoming team. Coordinators review/sign and create amendments; physicians validate when required. Signed narrative and source snapshots are preserved. Creating a new source after signature preserves the signed version and starts an amendment requiring renewed review/signature. See [handover workflow](docs/HANDOVER.md).
 
 Suggested connected flow:
 
@@ -63,7 +63,7 @@ Suggested connected flow:
 3. Find the original report and amendments in **Ward diary** and the source links in **Shift handover**.
 4. Contribute a summary; switch to Sarah to review and sign. If clinical validation is required, Olivia must validate the reviewed version first. An assigned incoming staff member acknowledges explicitly.
 5. Switch the demo offline and report again: it remains queued, with no staff notification. Reconnect to synchronize the same event once.
-6. Open **Chat** for team, direct, event-linked or private **RSA Assistant** conversations. Human messages become events only after reviewing and submitting a draft. Assistant answers link current authorized records.
+6. Open **Conversations** for ward, direct and private **RSA Assistant** conversations. Use **+** to find a colleague and create or reuse a direct conversation. Event discussions enter each account’s list only after **Open chat** from that event; this preference survives reopening and does not change ward authorization. Human messages become events only after reviewing and submitting a draft. Assistant answers link current authorized records.
 
 High routes to on-duty qualified nurses and present coordinators, including busy staff; off-duty and on-break staff are excluded. Medium initially targets available qualified nurses quietly. Low creates no targeted alert. Unhandled items remain visible when coverage is missing. Demo deadlines are **High: 2 minutes; Medium reminder: 5 minutes; Medium escalation: 10 minutes**. These are demonstration assumptions, not approved clinical policy. **Advance time** evaluates them without waiting; resume also evaluates persisted deadlines. Production scheduling belongs on the backend.
 
@@ -77,7 +77,7 @@ Web selects a supported durable browser storage mode. An in-memory-only result p
 
 The demo connectivity switch controls delivery simulation; it does not prove remote service reachability. Queued is never delivered. Original occurrence, registration and synchronization timestamps are distinct UTC instants. Display and morning/afternoon/night boundaries use `timezone` IANA data for **Europe/Rome**, including daylight-saving transitions.
 
-Media capture requests permission on use. Camera preview supports retake/attach; recording supports stop/playback/discard and durable WAV bytes. No intentional gallery writes are made. If hardware or permissions are unavailable, the standard interface reports the failure and offers retry. Explicitly labeled sample-photo/tone controls are available only with development tools enabled. Document review is currently removed from navigation and screens. Its simulated OCR data adapter is retained for possible future integration. Physical-device media/permission behavior has not been certified by web checks.
+Media capture requests permission on use. Camera preview supports retake/attach; recording supports stop/playback/discard and durable WAV bytes. No intentional gallery writes are made. If hardware or permissions are unavailable, the standard interface reports the failure and offers retry. Explicitly labeled sample-photo/tone controls are available only with development tools enabled. Document review is available from the sidebar and compact More menu. It preserves the source image, original extraction and reviewed text. Newly captured/imported documents remain awaiting extraction; manual transcription is available while the OCR service is not connected. Confirming transcription does not constitute clinical validation. Physical-device media/permission behavior has not been certified by web checks.
 
 ## Architecture and backend replacement
 
@@ -116,7 +116,7 @@ flutter drive --driver=test_driver/integration_test.dart \
   --chrome-binary=/path/to/chrome --headless
 ```
 
-In the cloud, Chromium is `/usr/bin/chromium`; add `--web-browser-flag=--no-sandbox --web-browser-flag=--disable-dev-shm-usage`. The isolated integration browser resets synthetic data in its own origin/profile. Unit/widget tests use an independent database. The cloud verification passed **42 unit/widget tests**, the browser integration flow, the release build and offline-reopening smoke check. See [verification results](docs/VERIFICATION.md) for actual outcomes, and [scope checklist](docs/CHECKLIST.md) for limitations.
+In the cloud, Chromium is `/usr/bin/chromium`; add `--web-browser-flag=--no-sandbox --web-browser-flag=--disable-dev-shm-usage`. The isolated integration browser resets synthetic data in its own origin/profile. Unit/widget tests use an independent database. The cloud verification passed **86 unit/widget tests**, the browser integration flow, the release build and offline-reopening smoke check. See [verification results](docs/VERIFICATION.md) for actual outcomes, and [scope checklist](docs/CHECKLIST.md) for limitations.
 
 ## Prototype boundaries
 
@@ -132,4 +132,6 @@ Backlog: FHIR connectors; no-code routing editor; forecasting/advanced workload 
 
 ![RSA desktop workspace](docs/screenshots/desktop.png)
 
-Phone screenshots: [Home](docs/screenshots/home-mobile.png) · [Rapid reporting](docs/screenshots/report-mobile.png).
+Workspace screenshots: [Handover desktop](docs/screenshots/handover-desktop.png) · [Document review](docs/screenshots/documents-desktop.png) · [Conversations](docs/screenshots/conversations-desktop.png).
+
+Phone screenshots: [Handover](docs/screenshots/handover-mobile.png) · [Home](docs/screenshots/home-mobile.png) · [Rapid reporting](docs/screenshots/report-mobile.png).

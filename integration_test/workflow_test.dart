@@ -80,6 +80,7 @@ void main() {
     expect(find.byType(InboxScreen), findsOneWidget);
     expect(repository.inboxEvents.map((entry) => entry.id), contains(event.id));
     // Opening the thread must not claim operational responsibility.
+    await repository.openEventConversation(event.id);
     router.go('/chat/${event.conversationId}');
     await tester.pumpAndSettle();
     expect(repository.eventById(event.id)!.claimedBy, isNull);

@@ -42,11 +42,13 @@ class RsaRepository extends ChangeNotifier implements EventRepository {
   List<Conversation> _conversations = [];
   List<Message> _messages = [];
   List<Handover> _handovers = [];
+  String? _selectedHandoverId;
   List<OcrItem> _ocr = [];
   List<AuditEntry> _auditEntries = [];
   List<MediaRecord> _media = [];
   Map<String, EventDraft> _drafts = {};
   final Map<String, int> _readCounts = {};
+  final Set<String> _openedEventConversations = {};
   Map<String, Map<String, dynamic>> _chatDrafts = {};
   bool _disposed = false;
   Future<void>? _closeFuture;
@@ -120,6 +122,17 @@ class RsaRepository extends ChangeNotifier implements EventRepository {
       return s;
     }
     throw const PermissionDenied();
+  }
+
+  /// A retained record can reference a colleague who has since left the ward.
+  /// Presentation may fall back to that record's actor ID without resolving an
+  /// out-of-scope staff profile. The strict lookup still enforces authorization.
+  StaffMember? staffForDisplay(String id) {
+    try {
+      return staffById(id);
+    } on PermissionDenied {
+      return null;
+    }
   }
 
   List<Resident> get residents {
@@ -230,7 +243,9 @@ class RsaRepository extends ChangeNotifier implements EventRepository {
           StaffSummary(
             id: 'summary-${h.id}-$index',
             wardId: h.wardId,
-            shiftId: Shift.at(contribution.createdAt, h.wardId).id,
+            shiftId:
+                h.outgoingShift?.id ??
+                Shift.at(contribution.createdAt, h.wardId).id,
             handoverId: h.id,
             authorId: contribution.authorId,
             text: contribution.text,
@@ -281,7 +296,9 @@ class RsaRepository extends ChangeNotifier implements EventRepository {
     return List.unmodifiable(_handovers.where((h) => h.wardId == _wardId));
   }
 
-  Handover get handover => handovers.first;
+  Handover get handover =>
+      handovers.where((h) => h.id == _selectedHandoverId).firstOrNull ??
+      handovers.first;
   List<OcrItem> get ocrItems {
     _require(Capability.care, _wardId);
     return List.unmodifiable(_ocr.where((o) => o.wardId == _wardId));
@@ -295,9 +312,96 @@ class RsaRepository extends ChangeNotifier implements EventRepository {
   List<Conversation> get conversations {
     _require(Capability.chat, _wardId);
     return List.unmodifiable(
-      _conversations.where((c) => c.wardId == _wardId && _canConversation(c)),
+      _conversations.where(
+        (c) =>
+            c.wardId == _wardId &&
+            _canConversation(c) &&
+            (c.kind != ConversationKind.event ||
+                _openedEventConversations.contains('$_personaId:${c.id}')),
+      ),
     );
   }
+
+  /// People with whom the current account may start a conversation in this ward.
+  /// Attendance does not remove an assigned colleague from the address book.
+  List<StaffMember> get conversationContacts {
+    _require(Capability.chat, _wardId);
+    final contacts =
+        _staff
+            .where((s) => s.id != _personaId && s.can(Capability.chat, _wardId))
+            .toList()
+          ..sort((a, b) => a.name.compareTo(b.name));
+    return List.unmodifiable(contacts);
+  }
+
+  String conversationTitle(Conversation conversation) {
+    final accessible = _conversation(conversation.id);
+    if (accessible.kind != ConversationKind.direct) return accessible.title;
+    final otherIds = accessible.memberIds.where((id) => id != _personaId);
+    final names = otherIds
+        .map((id) => _staff.where((s) => s.id == id).firstOrNull?.name)
+        .whereType<String>()
+        .toList();
+    return names.isEmpty ? accessible.title : names.join(', ');
+  }
+
+  /// Opening an event discussion adds it to this account's conversation list.
+  /// This preference does not change who can access the underlying ward event.
+  Future<Conversation> openEventConversation(String eventId) => _mutate(() {
+    _require(Capability.chat, _wardId);
+    final event = eventById(eventId);
+    if (event == null || event.wardId != _wardId) {
+      throw const PermissionDenied();
+    }
+    var conversation = _conversations
+        .where((c) => c.id == event.conversationId)
+        .firstOrNull;
+    if (conversation == null) {
+      conversation = Conversation(
+        id: event.conversationId,
+        wardId: event.wardId,
+        title: '${event.type.label} · ${event.residentId ?? event.subject}',
+        kind: ConversationKind.event,
+        eventId: event.id,
+      );
+      _conversations.add(conversation);
+    }
+    _openedEventConversations.add('$_personaId:${conversation.id}');
+    return conversation;
+  });
+
+  Future<Conversation> startDirectConversation(String staffId) => _mutate(() {
+    _require(Capability.chat, _wardId);
+    final colleague = _staff.where((s) => s.id == staffId).firstOrNull;
+    if (colleague == null ||
+        colleague.id == _personaId ||
+        !colleague.can(Capability.chat, _wardId)) {
+      throw const PermissionDenied(
+        'Choose a colleague assigned to the current ward.',
+      );
+    }
+    final existing = _conversations
+        .where(
+          (c) =>
+              c.kind == ConversationKind.direct &&
+              c.wardId == _wardId &&
+              c.memberIds.length == 2 &&
+              c.memberIds.contains(_personaId) &&
+              c.memberIds.contains(staffId),
+        )
+        .firstOrNull;
+    if (existing != null) return existing;
+    final conversation = Conversation(
+      id: _uuid.v4(),
+      wardId: _wardId,
+      title: colleague.name,
+      kind: ConversationKind.direct,
+      memberIds: [_personaId, staffId],
+    );
+    _conversations.add(conversation);
+    _log('Direct conversation opened', conversation.id);
+    return conversation;
+  });
 
   bool _canConversation(Conversation c) =>
       currentUser.can(Capability.chat, c.wardId) &&
@@ -374,7 +478,14 @@ class RsaRepository extends ChangeNotifier implements EventRepository {
               (c) => c.id == message.conversationId && _canConversation(c),
             ),
       );
-      if (m.authorId != _personaId && !inEvent && !inConversation) {
+      final inDocument = _ocr.any(
+        (o) =>
+            o.sourceMediaId == id && currentUser.can(Capability.care, o.wardId),
+      );
+      if (m.authorId != _personaId &&
+          !inEvent &&
+          !inConversation &&
+          !inDocument) {
         throw const PermissionDenied();
       }
     }
@@ -558,6 +669,39 @@ class RsaRepository extends ChangeNotifier implements EventRepository {
       jsonEncode(assignments.map((a) => a.toJson()).toList()),
     );
   });
+  Future<void> renameWard(String id, String name) => _mutate(() {
+    if (!can(Capability.administration) &&
+        !currentUser.can(Capability.management, id)) {
+      throw const PermissionDenied();
+    }
+    final index = _wards.indexWhere((ward) => ward.id == id);
+    final value = name.trim();
+    if (index < 0 || value.isEmpty || value.length > 100) {
+      throw StateError('Enter a valid ward name of up to 100 characters.');
+    }
+    _wards[index] = Ward(id, value);
+    _log('Ward configuration updated', id);
+  });
+  Future<void> configureRouting({
+    required int highMinutes,
+    required int reminderMinutes,
+    required int escalationMinutes,
+  }) => _mutate(() {
+    _require(Capability.administration);
+    if (highMinutes <= 0 ||
+        reminderMinutes <= 0 ||
+        escalationMinutes <= reminderMinutes ||
+        highMinutes > 1440 ||
+        escalationMinutes > 1440) {
+      throw StateError(
+        'Use positive minute values up to 1440. Escalation must follow the reminder.',
+      );
+    }
+    highTimeoutMinutes = highMinutes;
+    mediumReminderMinutes = reminderMinutes;
+    mediumEscalationMinutes = escalationMinutes;
+    _log('Facility alert timing updated', 'routing-policy');
+  });
   List<StaffMember> eligibleRecipients(CareEvent event) {
     _require(Capability.care, event.wardId);
     return _eligible(event);
@@ -729,13 +873,30 @@ class RsaRepository extends ChangeNotifier implements EventRepository {
         sourceEventIds: [event.id],
       ),
     );
-    final h = _handovers.firstWhere((h) => h.wardId == event.wardId);
+    final eventShift = Shift.at(event.occurredAt, event.wardId);
+    var h = _handovers
+        .where(
+          (h) =>
+              h.wardId == event.wardId && h.outgoingShift?.id == eventShift.id,
+        )
+        .firstOrNull;
+    if (h == null) {
+      h = Handover(
+        id: 'handover-${eventShift.id}',
+        wardId: event.wardId,
+        shift: eventShift.label,
+        outgoingShift: eventShift,
+      );
+      _handovers.add(h);
+    }
     // A signed source snapshot is immutable. New records enter a new draft amendment.
     if (h.status == HandoverStatus.signed ||
         h.status == HandoverStatus.acknowledged) {
       _newHandoverVersion(h, 'New event added to handover sources.');
     }
     h.sourceEventIds.add(event.id);
+    _clearHandoverReview(h);
+    h.needsDraftUpdate = true;
   }
 
   void _route(CareEvent event) {
@@ -1053,6 +1214,8 @@ class RsaRepository extends ChangeNotifier implements EventRepository {
     if (h.signedBy != null) {
       _newHandoverVersion(h, 'Staff contribution added after signing.');
     }
+    _clearHandoverReview(h);
+    h.needsDraftUpdate = true;
     h.contributions.add(
       RecordVersion(
         version: h.version,
@@ -1063,11 +1226,201 @@ class RsaRepository extends ChangeNotifier implements EventRepository {
     );
     _log('Staff summary retained', h.id, text);
   });
+
+  /// Opens an existing ward/shift record or prepares its source selection.
+  /// Incoming assignments are explicit; presence alone is not an assignment.
+  Future<void> selectHandoverShift(Shift shift) => _mutate(() {
+    _require(Capability.diary, _wardId);
+    if (shift.wardId != _wardId) throw const PermissionDenied();
+    var h = _handovers
+        .where((h) => h.wardId == _wardId && h.outgoingShift?.id == shift.id)
+        .firstOrNull;
+    if (h == null) {
+      _require(Capability.coordination, _wardId);
+      h = Handover(
+        id: 'handover-${shift.id}',
+        wardId: _wardId,
+        shift: shift.label,
+        outgoingShift: shift,
+        sourceEventIds: events
+            .where(
+              (e) =>
+                  shift.contains(e.occurredAt) ||
+                  (e.occurredAt.isBefore(shift.startsAt) &&
+                      e.status != EventStatus.closed),
+            )
+            .map((e) => e.id)
+            .toList(),
+      );
+      _handovers.add(h);
+      _log('Handover opened for shift', h.id, shift.id);
+    }
+    _selectedHandoverId = h.id;
+  });
+
+  Future<void> selectHandover(String id) => _mutate(() {
+    _require(Capability.diary, _wardId);
+    if (!handovers.any((h) => h.id == id)) throw const PermissionDenied();
+    _selectedHandoverId = id;
+  });
+
+  Future<void> assignHandoverIncomingStaff(List<String> ids) => _mutate(() {
+    _require(Capability.coordination, _wardId);
+    final h = handover;
+    if (h.signedBy != null) {
+      throw StateError(
+        'Create an amendment before changing the incoming team.',
+      );
+    }
+    final unique = ids.toSet();
+    if (unique.any(
+      (id) => !_staff.any(
+        (s) => s.id == id && s.can(Capability.acknowledge, _wardId),
+      ),
+    )) {
+      throw const PermissionDenied();
+    }
+    h.incomingStaffIds
+      ..clear()
+      ..addAll(unique);
+    _clearHandoverReview(h);
+    _log('Incoming handover team assigned', h.id, unique.join(','));
+  });
+
+  String _composeHandoverText(Handover h) {
+    final sources = _events.where((e) => h.sourceEventIds.contains(e.id));
+    String describe(CareEvent e) =>
+        '${e.type.label} · ${e.residentId ?? e.subject} — ${e.status.label}. ${e.notes}';
+    final important = sources.where((e) => e.priority != Priority.low);
+    final open = sources.where((e) => e.status != EventStatus.closed);
+    final notifications = sources.where(
+      (e) => e.priority != Priority.low && e.status != EventStatus.closed,
+    );
+    return [
+      'Important reported events',
+      important.isEmpty
+          ? 'No high- or medium-priority events recorded.'
+          : important.map(describe).join('\n\n'),
+      '',
+      'Open follow-ups',
+      open.isEmpty
+          ? 'No open follow-ups recorded.'
+          : open.map(describe).join('\n\n'),
+      '',
+      'Unresolved notifications',
+      notifications.isEmpty
+          ? 'No unresolved notifications recorded.'
+          : notifications
+                .map(
+                  (e) =>
+                      '${e.priority.label}: ${e.type.label} · ${e.residentId ?? e.subject} — ${e.status.label}.',
+                )
+                .join('\n'),
+      '',
+      'Items to pass to the next shift',
+      if (h.contributions.isEmpty)
+        'No staff contributions recorded.'
+      else
+        ...h.contributions.map((c) => c.text),
+      ...sources.where((e) => e.priority == Priority.low).map(describe),
+    ].join('\n');
+  }
+
+  /// Source organization fallback. A future AI adapter supplies generated text
+  /// through the same review/save/sign boundary; generation never approves it.
+  Future<void> prepareHandoverDraft() => _mutate(() {
+    _require(Capability.coordination, _wardId);
+    final h = handover;
+    if (h.signedBy != null) {
+      throw StateError('Create an amendment before preparing a new draft.');
+    }
+    if (h.draftText?.trim().isNotEmpty ?? false) {
+      h.versions.add(
+        RecordVersion(
+          version: h.version,
+          authorId: _personaId,
+          text: jsonEncode({'kind': 'draftReplaced', 'narrative': h.draftText}),
+          createdAt: now,
+        ),
+      );
+    }
+    h.draftText = _composeHandoverText(h);
+    h.originalDraftText = h.draftText;
+    h.preparedAt = now;
+    h.editedBy = null;
+    h.editedAt = null;
+    h.needsDraftUpdate = false;
+    _clearHandoverReview(h);
+    _log('Source-based handover draft prepared', h.id, h.draftText ?? '');
+  });
+
+  String handoverText([Handover? record]) {
+    final h = record ?? handover;
+    if (h.draftText != null) return h.draftText!;
+    if (h.signedBy != null) {
+      // Legacy signed records cannot be reconstructed from mutable live facts.
+      return 'The signed narrative is not available for this earlier record. Review its retained history and linked source reports.';
+    }
+    return '';
+  }
+
+  Future<void> saveHandoverDraft(String text) => _mutate(() {
+    if (!can(Capability.coordination) && !can(Capability.clinicalValidation)) {
+      throw const PermissionDenied();
+    }
+    final h = handover;
+    if (h.signedBy != null) {
+      throw StateError(
+        'Signed content is preserved. Create an amendment first.',
+      );
+    }
+    if (text.trim().isEmpty) {
+      throw StateError('Write the handover before saving.');
+    }
+    if (h.draftText == text.trim() && !h.needsDraftUpdate) return;
+    h.versions.add(
+      RecordVersion(
+        version: h.version,
+        authorId: _personaId,
+        text: jsonEncode({
+          'kind': 'draftEdited',
+          'narrative': h.draftText ?? '',
+          'updatedNarrative': text.trim(),
+        }),
+        createdAt: now,
+      ),
+    );
+    h.draftText = text.trim();
+    h.editedBy = _personaId;
+    h.editedAt = now;
+    h.needsDraftUpdate = false;
+    _clearHandoverReview(h);
+    _log('Handover draft edited', h.id, text.trim());
+  });
+
+  void _clearHandoverReview(Handover h) {
+    h.status = HandoverStatus.aiDraft;
+    h.reviewedBy = null;
+    h.reviewedAt = null;
+    h.validatedBy = null;
+    h.validatedAt = null;
+  }
+
   Future<void> reviewHandover() => _mutate(() {
     _require(Capability.coordination, _wardId);
     final h = handover;
     if (h.status != HandoverStatus.aiDraft) {
       throw StateError('Only an unsigned draft can be reviewed.');
+    }
+    if (h.draftText?.trim().isEmpty ?? true) {
+      throw StateError(
+        'Prepare or write the handover draft before reviewing it.',
+      );
+    }
+    if (h.needsDraftUpdate) {
+      throw StateError(
+        'Sources or contributions changed. Prepare or edit the draft before reviewing it.',
+      );
     }
     h.status = HandoverStatus.reviewed;
     h.reviewedBy = _personaId;
@@ -1102,12 +1455,31 @@ class RsaRepository extends ChangeNotifier implements EventRepository {
     h.status = HandoverStatus.signed;
     h.signedBy = _personaId;
     h.signedAt = now;
+    h.sourceSnapshots
+      ..clear()
+      ..addAll(
+        _events
+            .where((e) => h.sourceEventIds.contains(e.id))
+            .map(
+              (e) => jsonDecode(jsonEncode(e.toJson())) as Map<String, dynamic>,
+            ),
+      );
     h.versions.add(
       RecordVersion(
         version: h.version,
         authorId: _personaId,
         text: jsonEncode({
+          'kind': 'signed',
+          'narrative': h.draftText,
+          'originalDraft': h.originalDraftText,
+          'preparedAt': h.preparedAt?.toIso8601String(),
+          'reviewedBy': h.reviewedBy,
+          'reviewedAt': h.reviewedAt?.toIso8601String(),
+          'signedBy': h.signedBy,
+          'signedAt': h.signedAt?.toIso8601String(),
+          'sourceSnapshots': h.sourceSnapshots,
           'sources': h.sourceEventIds,
+          'incomingStaffIds': h.incomingStaffIds,
           'contributions': h.contributions.map((c) => c.toJson()).toList(),
           'validatedBy': h.validatedBy,
         }),
@@ -1116,9 +1488,18 @@ class RsaRepository extends ChangeNotifier implements EventRepository {
     );
     _log('Outgoing handover signed', h.id, 'Version ${h.version}');
   });
-  Future<void> acknowledgeHandover() => _mutate(() {
+  Future<void> acknowledgeHandover({
+    int? expectedVersion,
+    String? expectedHandoverId,
+  }) => _mutate(() {
     _require(Capability.acknowledge, _wardId);
     final h = handover;
+    if ((expectedVersion != null && expectedVersion != h.version) ||
+        (expectedHandoverId != null && expectedHandoverId != h.id)) {
+      throw StateError(
+        'The handover version changed. Review the current signed version before acknowledging it.',
+      );
+    }
     if (h.signedBy == null || !h.incomingStaffIds.contains(_personaId)) {
       throw const PermissionDenied(
         'Only assigned incoming staff can acknowledge a signed handover.',
@@ -1136,12 +1517,20 @@ class RsaRepository extends ChangeNotifier implements EventRepository {
         version: h.version,
         authorId: _personaId,
         text: jsonEncode({
+          'kind': 'amendment',
           'amendment': amendment,
+          'narrative': h.draftText,
+          'originalDraft': h.originalDraftText,
+          'sourceSnapshots': h.sourceSnapshots,
+          'reviewedBy': h.reviewedBy,
+          'reviewedAt': h.reviewedAt?.toIso8601String(),
           'signedBy': h.signedBy,
           'signedAt': h.signedAt?.toIso8601String(),
           'validatedBy': h.validatedBy,
+          'validatedAt': h.validatedAt?.toIso8601String(),
           'acknowledgements': Map.of(h.acknowledgements),
           'sources': List.of(h.sourceEventIds),
+          'incomingStaffIds': List.of(h.incomingStaffIds),
           'contributions': h.contributions.map((v) => v.toJson()).toList(),
         }),
         createdAt: now,
@@ -1156,13 +1545,23 @@ class RsaRepository extends ChangeNotifier implements EventRepository {
     h.signedBy = null;
     h.signedAt = null;
     h.acknowledgements.clear();
+    h.sourceSnapshots.clear();
   }
 
   Future<void> amendHandover(String text) => _mutate(() {
     _require(Capability.coordination, _wardId);
     if (text.trim().isEmpty) throw StateError('Enter an amendment.');
     final h = handover;
+    if (h.signedBy == null) {
+      throw StateError(
+        'Only a signed handover needs an amendment. Edit the draft instead.',
+      );
+    }
     _newHandoverVersion(h, text.trim());
+    h.draftText = '${h.draftText ?? ''}\n\nAmendment\n${text.trim()}'.trim();
+    h.editedBy = _personaId;
+    h.editedAt = now;
+    h.needsDraftUpdate = false;
     h.contributions.add(
       RecordVersion(
         version: h.version,
@@ -1173,6 +1572,33 @@ class RsaRepository extends ChangeNotifier implements EventRepository {
     );
     _log('Handover amendment appended', h.id, text);
   });
+  Future<OcrItem> createDocumentFromMedia(String mediaId, {String? title}) =>
+      _mutate(() {
+        _require(Capability.care, _wardId);
+        final media = mediaById(mediaId);
+        if (media == null ||
+            media.wardId != _wardId ||
+            !media.mimeType.startsWith('image/')) {
+          throw const PermissionDenied('Choose an image in the current ward.');
+        }
+        final item = OcrItem(
+          id: _uuid.v4(),
+          wardId: _wardId,
+          originalText: '',
+          title: title?.trim().isNotEmpty == true ? title!.trim() : media.label,
+          sourceMediaId: media.id,
+          sourceFingerprint: sha256.convert(media.bytes).toString(),
+          createdAt: now,
+        );
+        _ocr.insert(0, item);
+        _log(
+          'Document source retained; extraction pending',
+          item.id,
+          item.sourceFingerprint!,
+        );
+        return item;
+      });
+
   Future<void> confirmOcr(String id, String text) => _mutate(() {
     _require(Capability.care, _wardId);
     final o = _ocr.where((o) => o.id == id).firstOrNull;
@@ -1189,7 +1615,52 @@ class RsaRepository extends ChangeNotifier implements EventRepository {
     o.correctedText = text.trim();
     o.reviewedBy = _personaId;
     o.reviewedAt = now;
+    o.versions.add(
+      RecordVersion(
+        version: 1,
+        authorId: _personaId,
+        text: text.trim(),
+        createdAt: now,
+      ),
+    );
     _log('OCR text reviewed', id, text);
+  });
+  Future<void> appendOcrCorrection(String id, String text) => _mutate(() {
+    _require(Capability.care, _wardId);
+    final item = _ocr.where((o) => o.id == id).firstOrNull;
+    if (item == null) throw const PermissionDenied();
+    _require(Capability.care, item.wardId);
+    if (!item.isReviewed) {
+      throw StateError(
+        'Confirm the first transcription before adding a correction.',
+      );
+    }
+    if (text.trim().isEmpty || text.trim() == item.correctedText) {
+      throw StateError('Enter a correction before saving a new version.');
+    }
+    // Older saved documents may predate explicit version records.
+    if (item.versions.isEmpty) {
+      item.versions.add(
+        RecordVersion(
+          version: 1,
+          authorId: item.reviewedBy!,
+          text: item.correctedText ?? item.originalText,
+          createdAt: item.reviewedAt!,
+        ),
+      );
+    }
+    item.versions.add(
+      RecordVersion(
+        version: item.versions.last.version + 1,
+        authorId: _personaId,
+        text: text.trim(),
+        createdAt: now,
+      ),
+    );
+    item.correctedText = text.trim();
+    item.reviewedBy = _personaId;
+    item.reviewedAt = now;
+    _log('Document correction appended', id, text);
   });
   Map<String, int> aggregateCounts({String? wardId, DateTime? date}) {
     _require(Capability.management);
@@ -1282,6 +1753,7 @@ class RsaRepository extends ChangeNotifier implements EventRepository {
     'media': _media.map((x) => x.toJson()).toList(),
     'drafts': _drafts.map((key, value) => MapEntry(key, value.toJson())),
     'readCounts': _readCounts,
+    'openedEventConversations': _openedEventConversations.toList(),
     'chatDrafts': _chatDrafts,
     'highTimeoutMinutes': highTimeoutMinutes,
     'mediumReminderMinutes': mediumReminderMinutes,
@@ -1331,6 +1803,9 @@ class RsaRepository extends ChangeNotifier implements EventRepository {
     _readCounts
       ..clear()
       ..addAll(Map<String, int>.from(j['readCounts'] ?? {}));
+    _openedEventConversations
+      ..clear()
+      ..addAll(strings(j['openedEventConversations']));
     _chatDrafts = objectMap(
       j['chatDrafts'] ?? {},
     ).map((key, value) => MapEntry(key, objectMap(value)));
@@ -1664,6 +2139,8 @@ class RsaRepository extends ChangeNotifier implements EventRepository {
       Handover(
         id: 'handover-oak',
         wardId: 'oak',
+        shift: Shift.at(current, 'oak').label,
+        outgoingShift: Shift.at(current, 'oak'),
         sourceEventIds: _events
             .where((e) => e.wardId == 'oak')
             .map((e) => e.id)
@@ -1696,22 +2173,64 @@ class RsaRepository extends ChangeNotifier implements EventRepository {
       Handover(
         id: 'handover-willow',
         wardId: 'willow',
+        shift: Shift.at(current, 'willow').label,
+        outgoingShift: Shift.at(current, 'willow'),
         sourceEventIds: ['willow-event'],
         incomingStaffIds: ['willow-nurse'],
       ),
     ];
+    for (final h in _handovers) {
+      h.draftText = _composeHandoverText(h);
+      h.originalDraftText = h.draftText;
+      h.preparedAt = current.subtract(const Duration(minutes: 16));
+      if (h.signedBy != null) {
+        h.sourceSnapshots.addAll(
+          _events
+              .where((e) => h.sourceEventIds.contains(e.id))
+              .map(
+                (e) =>
+                    jsonDecode(jsonEncode(e.toJson())) as Map<String, dynamic>,
+              ),
+        );
+        h.versions
+          ..clear()
+          ..add(
+            RecordVersion(
+              version: h.version,
+              authorId: h.signedBy!,
+              createdAt: h.signedAt!,
+              text: jsonEncode({
+                'kind': 'signed',
+                'narrative': h.draftText,
+                'originalDraft': h.originalDraftText,
+                'sourceSnapshots': h.sourceSnapshots,
+                'sources': h.sourceEventIds,
+                'contributions': h.contributions
+                    .map((c) => c.toJson())
+                    .toList(),
+                'signedBy': h.signedBy,
+                'signedAt': h.signedAt!.toIso8601String(),
+                'reviewedBy': h.reviewedBy,
+                'reviewedAt': h.reviewedAt?.toIso8601String(),
+              }),
+            ),
+          );
+      }
+    }
     _ocr = [
       OcrItem(
         id: 'ocr-oak',
         wardId: 'oak',
         originalText:
-            'SYNTHETIC DOCUMENT\nEquipment check · 0[8?]:30\nWheelchair 04 · brake inspection requested.\nTime is uncertain. Review required.',
+            'Equipment check · 0[8?]:30\nWheelchair 04 · brake inspection requested.\nTime is uncertain. Review required.',
+        uncertainSegments: ['0[8?]:30'],
       ),
     ];
     _media = [];
     _drafts = {};
     _chatDrafts = {};
     _readCounts.clear();
+    _openedEventConversations.clear();
     _auditEntries = [];
     _ensureAssistant();
     _log('Synthetic data initialized', 'demo');

@@ -2,6 +2,7 @@
 Runs in a fresh browser context, never the user's existing demo session.
 """
 import argparse
+import re
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
 
@@ -28,6 +29,22 @@ with sync_playwright() as p:
     semantics(page)
     expect(page.get_by_role('button',name='Check out',exact=True)).to_be_visible(timeout=30000)
     page.screenshot(path=str(shots/'desktop.png'))
+    # The official workspace exposes document review and opt-in conversations.
+    for route, action, filename in [
+        ('handover', re.compile('^Outgoing shift'), 'handover-desktop.png'),
+        ('documents', 'Upload image', 'documents-desktop.png'),
+        ('chat', 'New conversation', 'conversations-desktop.png'),
+    ]:
+        page.goto(args.url.rstrip('/')+'/#/'+route,wait_until='domcontentloaded')
+        semantics(page)
+        expect(page.get_by_role('button',name=action).last).to_be_visible(timeout=30000)
+        if route=='chat':
+            expect(page.get_by_role('button',name='New conversation',exact=True)).to_be_visible()
+            assert page.locator('[aria-label*="Fall · R-014"]').count()==0,'Unopened event discussion leaked into the list'
+        page.screenshot(path=str(shots/filename))
+    page.goto(args.url,wait_until='domcontentloaded')
+    semantics(page)
+    expect(page.get_by_role('button',name='Check out',exact=True)).to_be_visible(timeout=30000)
     # Verify a real persisted attendance mutation, not only an open port.
     page.get_by_role('button',name='Check out',exact=True).click()
     expect(page.get_by_role('button',name='Check in',exact=True)).to_be_visible()
@@ -48,10 +65,17 @@ with sync_playwright() as p:
     expect(page.get_by_role('button',name='Check out',exact=True)).to_be_visible()
     page.set_viewport_size({'width':390,'height':844})
     page.screenshot(path=str(shots/'home-mobile.png'))
+    page.goto(args.url.rstrip('/')+'/#/handover',wait_until='domcontentloaded')
+    semantics(page)
+    expect(page.get_by_role('button',name=re.compile('^Outgoing shift'))).to_be_visible(timeout=30000)
+    page.screenshot(path=str(shots/'handover-mobile.png'))
+    page.goto(args.url,wait_until='domcontentloaded')
+    semantics(page)
+    expect(page.get_by_role('button',name='Check out',exact=True)).to_be_visible(timeout=30000)
     page.get_by_role('button',name='Report event',exact=True).last.click()
     expect(page.get_by_role('button',name='Send event',exact=True)).to_be_visible()
     page.screenshot(path=str(shots/'report-mobile.png'))
     assert not errors,errors
-    print(f'PASS: release startup, attendance mutation, refresh persistence, offline reopening ({cached} cached static assets), mobile navigation/report; no page errors.')
+    print(f'PASS: handover, documents, opt-in conversations, release startup, attendance mutation, refresh persistence, offline reopening ({cached} cached static assets), mobile navigation/report; no page errors.')
     context.close()
     browser.close()

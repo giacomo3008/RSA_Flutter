@@ -221,6 +221,16 @@ class StaffMember {
   bool hasRole(Role role, [String? wardId]) => assignments.any(
     (a) => a.role == role && (wardId == null || a.wardId == wardId),
   );
+
+  /// Presentation follows the same ward scope as authorization.
+  String rolesLabelForWard(String wardId) {
+    final labels = assignments
+        .where((assignment) => assignment.wardId == wardId)
+        .map((assignment) => assignment.role.label)
+        .toSet();
+    return labels.isEmpty ? 'No role assigned in this ward' : labels.join(', ');
+  }
+
   bool can(Capability capability, [String? wardId]) => assignments.any(
     (a) =>
         (wardId == null || a.wardId == wardId) &&
@@ -607,11 +617,20 @@ class AssistantAnswer {
 
 class Handover {
   final String id, wardId, shift;
+
+  /// Explicit ward/shift context. Older persisted records retain their label.
+  final Shift? outgoingShift;
   HandoverStatus status;
   bool requiresClinicalValidation;
   int version;
   String? reviewedBy, validatedBy, signedBy;
   DateTime? reviewedAt, validatedAt, signedAt;
+  String? draftText, originalDraftText, editedBy;
+  DateTime? preparedAt, editedAt;
+  bool needsDraftUpdate;
+
+  /// Source content at signature, separate from live reports and their statuses.
+  final List<Map<String, dynamic>> sourceSnapshots;
   final List<String> sourceEventIds, incomingStaffIds;
   final Map<String, String> acknowledgements;
   final List<RecordVersion> versions, contributions;
@@ -619,6 +638,7 @@ class Handover {
     required this.id,
     required this.wardId,
     this.shift = 'Morning · 07:00–14:00',
+    this.outgoingShift,
     this.status = HandoverStatus.aiDraft,
     this.requiresClinicalValidation = false,
     this.version = 1,
@@ -628,12 +648,20 @@ class Handover {
     this.reviewedAt,
     this.validatedAt,
     this.signedAt,
+    this.draftText,
+    this.originalDraftText,
+    this.editedBy,
+    this.preparedAt,
+    this.editedAt,
+    this.needsDraftUpdate = false,
+    List<Map<String, dynamic>>? sourceSnapshots,
     List<String>? sourceEventIds,
     List<String>? incomingStaffIds,
     Map<String, String>? acknowledgements,
     List<RecordVersion>? versions,
     List<RecordVersion>? contributions,
-  }) : sourceEventIds = sourceEventIds ?? [],
+  }) : sourceSnapshots = sourceSnapshots ?? [],
+       sourceEventIds = sourceEventIds ?? [],
        incomingStaffIds = incomingStaffIds ?? [],
        acknowledgements = acknowledgements ?? {},
        versions = versions ?? [],
@@ -642,6 +670,7 @@ class Handover {
     'id': id,
     'wardId': wardId,
     'shift': shift,
+    'outgoingShift': outgoingShift?.toJson(),
     'requiresClinicalValidation': requiresClinicalValidation,
     'status': status.name,
     'version': version,
@@ -651,6 +680,13 @@ class Handover {
     'reviewedAt': reviewedAt?.toIso8601String(),
     'validatedAt': validatedAt?.toIso8601String(),
     'signedAt': signedAt?.toIso8601String(),
+    'draftText': draftText,
+    'originalDraftText': originalDraftText,
+    'editedBy': editedBy,
+    'preparedAt': preparedAt?.toIso8601String(),
+    'editedAt': editedAt?.toIso8601String(),
+    'needsDraftUpdate': needsDraftUpdate,
+    'sourceSnapshots': sourceSnapshots,
     'sourceEventIds': sourceEventIds,
     'incomingStaffIds': incomingStaffIds,
     'acknowledgements': acknowledgements,
@@ -661,6 +697,9 @@ class Handover {
     id: j['id'],
     wardId: j['wardId'],
     shift: j['shift'],
+    outgoingShift: j['outgoingShift'] == null
+        ? null
+        : Shift.fromJson(objectMap(j['outgoingShift'])),
     requiresClinicalValidation: j['requiresClinicalValidation'] ?? false,
     status: HandoverStatus.values.byName(j['status']),
     version: j['version'],
@@ -670,6 +709,15 @@ class Handover {
     reviewedAt: j['reviewedAt'] == null ? null : instant(j['reviewedAt']),
     validatedAt: j['validatedAt'] == null ? null : instant(j['validatedAt']),
     signedAt: j['signedAt'] == null ? null : instant(j['signedAt']),
+    draftText: j['draftText'],
+    originalDraftText: j['originalDraftText'],
+    editedBy: j['editedBy'],
+    preparedAt: j['preparedAt'] == null ? null : instant(j['preparedAt']),
+    editedAt: j['editedAt'] == null ? null : instant(j['editedAt']),
+    needsDraftUpdate: j['needsDraftUpdate'] ?? false,
+    sourceSnapshots: (j['sourceSnapshots'] as List? ?? [])
+        .map(objectMap)
+        .toList(),
     sourceEventIds: strings(j['sourceEventIds']),
     incomingStaffIds: strings(j['incomingStaffIds']),
     acknowledgements: Map<String, String>.from(j['acknowledgements'] ?? {}),
@@ -684,20 +732,42 @@ class Handover {
 
 class OcrItem {
   final String id, wardId, originalText;
+  final String title;
+  final String? sourceMediaId, sourceFingerprint, extractionError;
+  final DateTime? createdAt;
+  final List<String> uncertainSegments;
+  final List<RecordVersion> versions;
   String? correctedText, reviewedBy;
   DateTime? reviewedAt;
   OcrItem({
     required this.id,
     required this.wardId,
     required this.originalText,
+    this.title = 'Equipment check',
+    this.sourceMediaId,
+    this.sourceFingerprint,
+    this.extractionError,
+    this.createdAt,
+    List<String>? uncertainSegments,
+    List<RecordVersion>? versions,
     this.correctedText,
     this.reviewedBy,
     this.reviewedAt,
-  });
+  }) : uncertainSegments = uncertainSegments ?? [],
+       versions = versions ?? [];
+  bool get hasExtraction => originalText.trim().isNotEmpty;
+  bool get isReviewed => reviewedAt != null;
   Map<String, dynamic> toJson() => {
     'id': id,
     'wardId': wardId,
     'originalText': originalText,
+    'title': title,
+    'sourceMediaId': sourceMediaId,
+    'sourceFingerprint': sourceFingerprint,
+    'extractionError': extractionError,
+    'createdAt': createdAt?.toIso8601String(),
+    'uncertainSegments': uncertainSegments,
+    'versions': versions.map((v) => v.toJson()).toList(),
     'correctedText': correctedText,
     'reviewedBy': reviewedBy,
     'reviewedAt': reviewedAt?.toIso8601String(),
@@ -706,6 +776,15 @@ class OcrItem {
     id: j['id'],
     wardId: j['wardId'],
     originalText: j['originalText'],
+    title: j['title'] ?? 'Equipment check',
+    sourceMediaId: j['sourceMediaId'],
+    sourceFingerprint: j['sourceFingerprint'],
+    extractionError: j['extractionError'],
+    createdAt: j['createdAt'] == null ? null : instant(j['createdAt']),
+    uncertainSegments: strings(j['uncertainSegments']),
+    versions: (j['versions'] as List? ?? [])
+        .map((v) => RecordVersion.fromJson(objectMap(v)))
+        .toList(),
     correctedText: j['correctedText'],
     reviewedBy: j['reviewedBy'],
     reviewedAt: j['reviewedAt'] == null ? null : instant(j['reviewedAt']),

@@ -25,11 +25,16 @@ void main() {
   );
 
   test(
-    'assistant report is linked once across diary, event thread, inbox and handover',
+    'assistant report is linked across diary and handover with an optional event conversation',
     () async {
       await repo.switchPersona('assistant-1');
       final event = await repo.reportEvent(draft('flow'));
       expect(repo.events.where((e) => e.id == event.id), hasLength(1));
+      expect(
+        repo.conversations.any((c) => c.id == event.conversationId),
+        isFalse,
+      );
+      await repo.openEventConversation(event.id);
       expect(
         repo.conversations.any((c) => c.id == event.conversationId),
         isTrue,

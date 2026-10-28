@@ -43,7 +43,9 @@ class AccountScreen extends ConsumerWidget {
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.badge_outlined, color: teal),
                 title: Text(tr(context, 'professionalRole')),
-                subtitle: Text(user.role.label),
+                subtitle: Text(
+                  user.rolesLabelForWard(repository.activeWard.id),
+                ),
               ),
               const Divider(),
               ListTile(
@@ -82,6 +84,41 @@ class AccountScreen extends ConsumerWidget {
             ],
           ),
         ),
+        const SizedBox(height: 20),
+        SectionCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Your workspace access',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+              ),
+              const SizedBox(height: 12),
+              for (final assignment in user.assignments)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(
+                    Icons.verified_user_outlined,
+                    color: teal,
+                  ),
+                  title: Text(assignment.role.label),
+                  subtitle: Text(
+                    wards
+                            .where((ward) => ward.id == assignment.wardId)
+                            .firstOrNull
+                            ?.name ??
+                        assignment.wardId,
+                  ),
+                ),
+              const Divider(),
+              const Text(
+                'Professional roles and ward access are assigned to your corporate account. Changing the current ward uses your existing assignments; it does not grant additional permissions.',
+                style: TextStyle(color: muted),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
       ],
     );
   }

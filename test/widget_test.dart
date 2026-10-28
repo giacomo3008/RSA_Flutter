@@ -127,7 +127,7 @@ void main() {
     expect(repository.handover.sourceEventIds, contains(event.id));
     expect(
       repository.conversations.any((thread) => thread.eventId == event.id),
-      isTrue,
+      isFalse,
     );
   });
 

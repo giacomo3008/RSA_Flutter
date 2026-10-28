@@ -7,6 +7,9 @@ import '../core/repository.dart';
 import '../features/chat.dart';
 import '../features/account.dart';
 import '../features/events.dart';
+import '../features/handover.dart';
+import '../features/document_review.dart';
+import '../features/physician.dart';
 import '../features/workspace.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../shared/ui.dart';
@@ -82,12 +85,14 @@ class _RsaAppState extends ConsumerState<RsaSessionApp>
         if (path == '/coordination' && !r.can(Capability.coordination)) {
           return landing;
         }
+        if (path == '/clinical' && !r.can(Capability.clinicalValidation)) {
+          return landing;
+        }
         return null;
       },
       routes: [
         GoRoute(path: '/', redirect: (context, state) => '/home'),
-        // Retired workspace: old bookmarks return to the role's landing page.
-        GoRoute(path: '/ocr', redirect: (context, state) => '/'),
+        GoRoute(path: '/ocr', redirect: (context, state) => '/documents'),
         GoRoute(
           path: '/report',
           builder: (context, state) => ReportScreen(
@@ -162,6 +167,22 @@ class _RsaAppState extends ConsumerState<RsaSessionApp>
                 GoRoute(
                   path: '/shift',
                   builder: (context, state) => const ShiftScreen(),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/documents',
+                  builder: (context, state) => const DocumentReviewScreen(),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/clinical',
+                  builder: (context, state) => const PhysicianScreen(),
                 ),
               ],
             ),
@@ -404,7 +425,20 @@ class _Sidebar extends StatelessWidget {
                   '/handover',
                 ),
                 _nav(context, Icons.badge_outlined, 'myShift', '/shift'),
+                _nav(
+                  context,
+                  Icons.document_scanner_outlined,
+                  'documentReview',
+                  '/documents',
+                ),
               ],
+              if (repo.can(Capability.clinicalValidation))
+                _nav(
+                  context,
+                  Icons.verified_outlined,
+                  'clinicalWorkspace',
+                  '/clinical',
+                ),
               if (repo.can(Capability.coordination))
                 _nav(
                   context,
@@ -645,7 +679,9 @@ class _Header extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          repo.currentUser.role.label,
+                          repo.currentUser.rolesLabelForWard(
+                            repo.activeWard.id,
+                          ),
                           style: const TextStyle(fontSize: 9, color: muted),
                         ),
                       ],

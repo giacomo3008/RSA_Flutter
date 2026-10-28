@@ -10,6 +10,13 @@ import '../app/environment.dart';
 import '../core/media.dart';
 import 'ui.dart';
 
+/// Capture a document image without exposing audio or sample attachments.
+Future<MediaPayload?> captureDocumentPhoto(BuildContext context) =>
+    showDialog<MediaPayload>(
+      context: context,
+      builder: (_) => const _CaptureDialog(photo: true),
+    );
+
 /// On-demand capture. No permission is requested until a capture button is used.
 class MediaCapture extends StatelessWidget {
   final ValueChanged<MediaPayload> onAttached;
