@@ -324,6 +324,125 @@ void main() {
     await drainUpdates(tester, () => !repository.currentUser.onDuty);
   });
 
+  testWidgets('saving a correction preserves the report and dismisses safely', (
+    tester,
+  ) async {
+    final original = repository.eventById('event-fall')!;
+    final notes = original.notes;
+    final versions = original.versions.length;
+    await showApp(
+      tester,
+      size: const Size(1440, 1100),
+      location: '/event/event-fall',
+    );
+    final correctionButton = find.text('Add correction');
+    await tester.scrollUntilVisible(
+      correctionButton,
+      350,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(correctionButton);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byType(TextField).last,
+      'Correction: the location was the corridor.',
+    );
+    await tester.tap(find.text('Save correction'));
+    await drainUpdates(
+      tester,
+      () =>
+          repository.eventById('event-fall')!.versions.length == versions + 1 &&
+          find.text('Correction added to history.').evaluate().isNotEmpty,
+    );
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(repository.eventById('event-fall')!.notes, notes);
+    expect(
+      repository.eventById('event-fall')!.versions.last.text,
+      'Correction: the location was the corridor.',
+    );
+    tester
+        .state<ScrollableState>(find.byType(Scrollable).first)
+        .position
+        .jumpTo(0);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Version history'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Correction: the location was the corridor.'),
+      findsWidgets,
+    );
+    expect(find.text(notes), findsWidgets);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.runAsync(repository.close);
+  });
+
+  testWidgets('cancelling a correction leaves its report unchanged', (
+    tester,
+  ) async {
+    final count = repository.eventById('event-fall')!.versions.length;
+    await showApp(
+      tester,
+      size: const Size(1440, 1100),
+      location: '/event/event-fall',
+    );
+    final button = find.text('Add correction');
+    await tester.scrollUntilVisible(
+      button,
+      350,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, 'Unsubmitted draft');
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(repository.eventById('event-fall')!.versions.length, count);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.runAsync(repository.close);
+  });
+
+  testWidgets('closing an event records its outcome and dismisses safely', (
+    tester,
+  ) async {
+    await showApp(
+      tester,
+      size: const Size(1440, 1100),
+      location: '/event/event-skin',
+    );
+    final button = find.text('Close event');
+    await tester.scrollUntilVisible(
+      button,
+      350,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byType(TextField).last,
+      'Follow-up documented by staff.',
+    );
+    await tester.runAsync(
+      () => tester.tap(
+        find.widgetWithText(FilledButton, 'Save outcome and close'),
+      ),
+    );
+    await drainUpdates(
+      tester,
+      () =>
+          repository.eventById('event-skin')!.status == EventStatus.closed &&
+          find.text('Event closed').evaluate().isNotEmpty,
+    );
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(
+      repository.eventById('event-skin')!.outcome,
+      'Follow-up documented by staff.',
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.runAsync(repository.close);
+  });
+
   testWidgets(
     'account settings do not expose role switching or development tools',
     (tester) async {

@@ -94,6 +94,30 @@ void main() {
       'the explicit claim is recorded',
     );
     expect(repository.eventById(event.id)!.claimedBy, 'nurse-1');
+    final correction = 'Follow-up correction to the original observation.';
+    final originalNotes = repository.eventById(event.id)!.notes;
+    final originalVersions = repository.eventById(event.id)!.versions.length;
+    final addCorrection = find.text('Add correction');
+    await tester.scrollUntilVisible(
+      addCorrection,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(addCorrection);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, correction);
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.tap(find.text('Save correction'));
+    await _waitUntil(
+      tester,
+      () =>
+          repository.eventById(event.id)!.versions.length ==
+              originalVersions + 1 &&
+          find.byType(AlertDialog).evaluate().isEmpty,
+      'the correction is saved and its dialog safely closes',
+    );
+    expect(repository.eventById(event.id)!.notes, originalNotes);
+    expect(repository.eventById(event.id)!.versions.last.text, correction);
     router.go('/diary');
     await tester.pumpAndSettle();
     expect(find.byType(DiaryScreen), findsOneWidget);

@@ -1311,6 +1311,95 @@ class _OperationalEventCard extends ConsumerWidget {
   }
 }
 
+/// Own the input for the full dialog lifetime, including its exit transition.
+class _EventNoteDialog extends StatefulWidget {
+  final bool close;
+  const _EventNoteDialog({required this.close});
+
+  @override
+  State<_EventNoteDialog> createState() => _EventNoteDialogState();
+}
+
+class _EventNoteDialogState extends State<_EventNoteDialog> {
+  final _controller = TextEditingController();
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final text = _controller.text.trim();
+    if (text.isEmpty) {
+      setState(
+        () => _error = tr(
+          context,
+          widget.close ? 'outcomeRequired' : 'correctionRequired',
+        ),
+      );
+      return;
+    }
+    Navigator.of(context).pop(text);
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(
+      tr(context, widget.close ? 'closeEventTitle' : 'amendEventTitle'),
+    ),
+    content: SizedBox(
+      width: 480,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!widget.close) ...[
+              Text(
+                tr(context, 'reportAmendmentHelp'),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: _slate),
+              ),
+              const SizedBox(height: 16),
+            ],
+            TextField(
+              autofocus: true,
+              controller: _controller,
+              minLines: 3,
+              maxLines: 7,
+              decoration: InputDecoration(
+                labelText: tr(
+                  context,
+                  widget.close ? 'outcomeLabel' : 'correctionLabel',
+                ),
+                hintText: tr(
+                  context,
+                  widget.close ? 'outcomeHint' : 'correctionHint',
+                ),
+                errorText: _error,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: Text(tr(context, 'cancelLabel')),
+      ),
+      FilledButton(
+        onPressed: _submit,
+        child: Text(
+          tr(context, widget.close ? 'closeEventAction' : 'saveCorrection'),
+        ),
+      ),
+    ],
+  );
+}
+
 class EventDetailScreen extends ConsumerWidget {
   final String eventId;
   const EventDetailScreen({super.key, required this.eventId});
@@ -1321,76 +1410,10 @@ class EventDetailScreen extends ConsumerWidget {
     CareEvent event, {
     bool close = false,
   }) async {
-    final controller = TextEditingController();
-    String? error;
     final result = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: Text(
-            tr(context, close ? 'closeEventTitle' : 'amendEventTitle'),
-          ),
-          content: SizedBox(
-            width: 480,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (!close) ...[
-                  Text(
-                    tr(context, 'reportAmendmentHelp'),
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: _slate),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                TextField(
-                  autofocus: true,
-                  controller: controller,
-                  minLines: 3,
-                  maxLines: 7,
-                  decoration: InputDecoration(
-                    labelText: tr(
-                      context,
-                      close ? 'outcomeLabel' : 'correctionLabel',
-                    ),
-                    hintText: tr(
-                      context,
-                      close ? 'outcomeHint' : 'correctionHint',
-                    ),
-                    errorText: error,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(tr(context, 'cancelLabel')),
-            ),
-            FilledButton(
-              onPressed: () {
-                if (controller.text.trim().isEmpty) {
-                  setState(
-                    () => error = tr(
-                      context,
-                      close ? 'outcomeRequired' : 'correctionRequired',
-                    ),
-                  );
-                } else {
-                  Navigator.pop(dialogContext, controller.text.trim());
-                }
-              },
-              child: Text(
-                tr(context, close ? 'closeEventAction' : 'saveCorrection'),
-              ),
-            ),
-          ],
-        ),
-      ),
+      builder: (_) => _EventNoteDialog(close: close),
     );
-    controller.dispose();
     if (result == null || !context.mounted) return;
     try {
       if (close) {
