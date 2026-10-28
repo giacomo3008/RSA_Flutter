@@ -116,7 +116,7 @@ flutter drive --driver=test_driver/integration_test.dart \
   --chrome-binary=/path/to/chrome --headless
 ```
 
-In the cloud, Chromium is `/usr/bin/chromium`; add `--web-browser-flag=--no-sandbox --web-browser-flag=--disable-dev-shm-usage`. The isolated integration browser resets synthetic data in its own origin/profile. Unit/widget tests use an independent database. The cloud verification passed **39 unit/widget tests**, the browser integration flow, the release build and offline-reopening smoke check. See [verification results](docs/VERIFICATION.md) for actual outcomes, and [scope checklist](docs/CHECKLIST.md) for limitations.
+In the cloud, Chromium is `/usr/bin/chromium`; add `--web-browser-flag=--no-sandbox --web-browser-flag=--disable-dev-shm-usage`. The isolated integration browser resets synthetic data in its own origin/profile. Unit/widget tests use an independent database. The cloud verification passed **42 unit/widget tests**, the browser integration flow, the release build and offline-reopening smoke check. See [verification results](docs/VERIFICATION.md) for actual outcomes, and [scope checklist](docs/CHECKLIST.md) for limitations.
 
 ## Prototype boundaries
 
