@@ -21,6 +21,24 @@ class ChatScreen extends ConsumerStatefulWidget {
 
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final TextEditingController _search = TextEditingController();
+  bool _startingConversation = false;
+
+  Future<void> _newConversation(RsaRepository repository) async {
+    final personId = await showDialog<String>(
+      context: context,
+      builder: (_) => _NewConversationDialog(
+        contacts: repository.conversationContacts,
+        wardId: repository.activeWard.id,
+      ),
+    );
+    if (personId == null || !mounted) return;
+    setState(() => _startingConversation = true);
+    await runAction(context, () async {
+      final conversation = await repository.startDirectConversation(personId);
+      if (mounted) context.go('/chat/${conversation.id}');
+    });
+    if (mounted) setState(() => _startingConversation = false);
+  }
 
   @override
   void dispose() {
@@ -44,7 +62,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         .where(
           (conversation) =>
               query.isEmpty ||
-              conversation.title.toLowerCase().contains(query) ||
+              repo
+                  .conversationTitle(conversation)
+                  .toLowerCase()
+                  .contains(query) ||
               repo
                   .messagesFor(conversation.id)
                   .any((m) => m.text.toLowerCase().contains(query)),
@@ -74,9 +95,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    tr(context, 'chatTitle'),
-                    style: Theme.of(context).textTheme.headlineMedium,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Conversations',
+                          style: Theme.of(context).textTheme.headlineMedium,
+                        ),
+                      ),
+                      IconButton.filled(
+                        key: const Key('new-conversation'),
+                        tooltip: 'New conversation',
+                        onPressed: _startingConversation
+                            ? null
+                            : () => _newConversation(repo),
+                        icon: _startingConversation
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.add),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 5),
                   Text(
@@ -140,7 +183,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                               }),
                             ),
                             title: Text(
-                              conversation.title,
+                              repo.conversationTitle(conversation),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
@@ -223,6 +266,88 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 }
 
+class _NewConversationDialog extends StatefulWidget {
+  final List<StaffMember> contacts;
+  final String wardId;
+  const _NewConversationDialog({required this.contacts, required this.wardId});
+
+  @override
+  State<_NewConversationDialog> createState() => _NewConversationDialogState();
+}
+
+class _NewConversationDialogState extends State<_NewConversationDialog> {
+  final _search = TextEditingController();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  String _roles(StaffMember person) => person.rolesLabelForWard(widget.wardId);
+
+  @override
+  Widget build(BuildContext context) {
+    final query = _search.text.trim().toLowerCase();
+    final contacts = widget.contacts
+        .where(
+          (person) =>
+              query.isEmpty ||
+              person.name.toLowerCase().contains(query) ||
+              _roles(person).toLowerCase().contains(query),
+        )
+        .toList();
+    return AlertDialog(
+      title: const Text('New conversation'),
+      content: SizedBox(
+        width: 420,
+        height: 420,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Choose a colleague in your current ward.'),
+            const SizedBox(height: 16),
+            TextField(
+              key: const Key('conversation-contact-search'),
+              controller: _search,
+              autofocus: true,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search),
+                hintText: 'Search by name or role',
+              ),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: contacts.isEmpty
+                  ? const Center(child: Text('No matching colleagues.'))
+                  : ListView.builder(
+                      itemCount: contacts.length,
+                      itemBuilder: (context, index) {
+                        final person = contacts[index];
+                        return ListTile(
+                          leading: Avatar(person.initials),
+                          title: Text(person.name),
+                          subtitle: Text(_roles(person)),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => Navigator.pop(context, person.id),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(tr(context, 'cancel')),
+        ),
+      ],
+    );
+  }
+}
+
 class _ConversationThread extends ConsumerStatefulWidget {
   final Conversation conversation;
   final bool compact;
@@ -239,12 +364,12 @@ class _ConversationThread extends ConsumerStatefulWidget {
 class _ConversationThreadState extends ConsumerState<_ConversationThread> {
   final TextEditingController _composer = TextEditingController();
   final TextEditingController _search = TextEditingController();
-  final ScrollController _scroll = ScrollController();
+  final ScrollController _scroll = ScrollController(keepScrollOffset: false);
   Message? _reply;
   MediaPayload? _attachment;
   String? _storedMediaId;
   bool _sending = false, _searching = false;
-  int _messageCount = 0;
+  int? _messageCount;
   Timer? _draftDebounce;
   late final RsaRepository _repository;
   late final String _ownerId;
@@ -408,7 +533,7 @@ class _ConversationThreadState extends ConsumerState<_ConversationThread> {
   void _scrollToEnd() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _scroll.hasClients) {
-        _scroll.jumpTo(_scroll.position.maxScrollExtent);
+        _scroll.jumpTo(_scroll.position.minScrollExtent);
       }
     });
   }
@@ -433,8 +558,9 @@ class _ConversationThreadState extends ConsumerState<_ConversationThread> {
     final allMessages = repo.messagesFor(widget.conversation.id);
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     if (allMessages.length != _messageCount) {
+      final initialLayout = _messageCount == null;
       _messageCount = allMessages.length;
-      _scrollToEnd();
+      if (!initialLayout) _scrollToEnd();
     }
     final query = _search.text.trim().toLowerCase();
     final messages = allMessages
@@ -471,7 +597,7 @@ class _ConversationThreadState extends ConsumerState<_ConversationThread> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.conversation.title,
+                      repo.conversationTitle(widget.conversation),
                       style: Theme.of(context).textTheme.titleMedium,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -548,7 +674,7 @@ class _ConversationThreadState extends ConsumerState<_ConversationThread> {
                 Text(
                   event.claimedBy == null
                       ? tr(context, 'notTakenCharge')
-                      : '${event.status.label} · ${repo.staffById(event.claimedBy!)?.name ?? event.claimedBy}',
+                      : '${event.status.label} · ${repo.staffForDisplay(event.claimedBy!)?.name ?? event.claimedBy}',
                 ),
                 TextButton(
                   onPressed: () => context.push('/event/${event.id}'),
@@ -575,15 +701,17 @@ class _ConversationThreadState extends ConsumerState<_ConversationThread> {
                         ),
                       )
               : ListView.builder(
+                  key: const Key('conversation-messages'),
                   controller: _scroll,
+                  reverse: true,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 18,
                     vertical: 20,
                   ),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
-                    final message = messages[index];
-                    final author = repo.staffById(message.authorId);
+                    final message = messages[messages.length - 1 - index];
+                    final author = repo.staffForDisplay(message.authorId);
                     final mine = message.authorId == repo.currentUser.id;
                     final replied = message.replyTo == null
                         ? null
@@ -623,7 +751,9 @@ class _ConversationThreadState extends ConsumerState<_ConversationThread> {
                                     message.ai
                                         ? tr(context, 'rsaAssistant')
                                         : author?.name ??
-                                              tr(context, 'systemMessage'),
+                                              (message.authorId == 'system'
+                                                  ? tr(context, 'systemMessage')
+                                                  : message.authorId),
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w700,
                                     ),
@@ -632,7 +762,9 @@ class _ConversationThreadState extends ConsumerState<_ConversationThread> {
                                     StatusPill(label: tr(context, 'aiLabel')),
                                   if (!message.ai && author != null)
                                     Text(
-                                      author.role.label,
+                                      author.rolesLabelForWard(
+                                        widget.conversation.wardId,
+                                      ),
                                       style: Theme.of(
                                         context,
                                       ).textTheme.labelSmall,

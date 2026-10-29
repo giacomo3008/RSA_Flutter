@@ -6,7 +6,11 @@ import '../core/providers.dart';
 import '../core/repository.dart';
 import '../features/chat.dart';
 import '../features/account.dart';
+import '../features/access.dart';
 import '../features/events.dart';
+import '../features/handover.dart';
+import '../features/document_review.dart';
+import '../features/physician.dart';
 import '../features/workspace.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../shared/ui.dart';
@@ -26,16 +30,23 @@ class _RsaRootState extends ConsumerState<RsaApp> {
   bool initial = true;
   @override
   Widget build(BuildContext context) {
+    final accessIdentity = ref.watch(
+      accessSessionProvider.select(
+        (session) => '${session.isSignedIn}:${session.revision}',
+      ),
+    );
     final identity = ref.watch(
       rsaRepositoryProvider.select(
         (r) => '${r.currentUser.id}:${r.activeWard.id}',
       ),
     );
-    final changed = previousIdentity != null && previousIdentity != identity;
+    final navigationIdentity = '$accessIdentity:$identity';
+    final changed =
+        previousIdentity != null && previousIdentity != navigationIdentity;
     if (changed) initial = false;
-    previousIdentity = identity;
+    previousIdentity = navigationIdentity;
     return RsaSessionApp(
-      key: ValueKey(identity),
+      key: ValueKey(navigationIdentity),
       initialLocation: initial ? widget.initialLocation : '/',
     );
   }
@@ -56,17 +67,21 @@ class _RsaAppState extends ConsumerState<RsaSessionApp>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     final r = ref.read(rsaRepositoryProvider);
+    final session = ref.read(accessSessionProvider);
     router = GoRouter(
       initialLocation: widget.initialLocation,
-      refreshListenable: r,
+      refreshListenable: Listenable.merge([r, session]),
       redirect: (context, state) {
         final path = state.uri.path;
+        final accessPage = path == '/login';
+        if (!session.isSignedIn) return accessPage ? null : '/login';
         final care = r.can(Capability.care);
         final landing = care
             ? '/home'
             : r.can(Capability.management)
             ? '/management'
             : '/admin';
+        if (accessPage) return landing;
         if (path == '/') return landing;
         if (path == '/settings') return null;
         if (path == '/development') {
@@ -82,12 +97,19 @@ class _RsaAppState extends ConsumerState<RsaSessionApp>
         if (path == '/coordination' && !r.can(Capability.coordination)) {
           return landing;
         }
+        if (path == '/clinical' && !r.can(Capability.clinicalValidation)) {
+          return landing;
+        }
         return null;
       },
       routes: [
+        GoRoute(
+          path: '/login',
+          builder: (context, state) => const AccessScreen(),
+        ),
+        GoRoute(path: '/register', redirect: (context, state) => '/login'),
         GoRoute(path: '/', redirect: (context, state) => '/home'),
-        // Retired workspace: old bookmarks return to the role's landing page.
-        GoRoute(path: '/ocr', redirect: (context, state) => '/'),
+        GoRoute(path: '/ocr', redirect: (context, state) => '/documents'),
         GoRoute(
           path: '/report',
           builder: (context, state) => ReportScreen(
@@ -113,12 +135,19 @@ class _RsaAppState extends ConsumerState<RsaSessionApp>
               routes: [
                 GoRoute(
                   path: '/chat',
-                  builder: (context, state) => const ChatScreen(),
+                  pageBuilder: (context, state) => NoTransitionPage(
+                    key: state.pageKey,
+                    child: const ChatScreen(),
+                  ),
                   routes: [
                     GoRoute(
                       path: ':conversationId',
-                      builder: (context, state) => ChatScreen(
-                        conversationId: state.pathParameters['conversationId'],
+                      pageBuilder: (context, state) => NoTransitionPage(
+                        key: state.pageKey,
+                        child: ChatScreen(
+                          conversationId:
+                              state.pathParameters['conversationId'],
+                        ),
                       ),
                     ),
                   ],
@@ -162,6 +191,22 @@ class _RsaAppState extends ConsumerState<RsaSessionApp>
                 GoRoute(
                   path: '/shift',
                   builder: (context, state) => const ShiftScreen(),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/documents',
+                  builder: (context, state) => const DocumentReviewScreen(),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/clinical',
+                  builder: (context, state) => const PhysicianScreen(),
                 ),
               ],
             ),
@@ -234,7 +279,8 @@ class _RsaAppState extends ConsumerState<RsaSessionApp>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.resumed &&
+        ref.read(accessSessionProvider).isSignedIn) {
       runAction(
         context,
         () => ref.read(rsaRepositoryProvider).advanceTime(Duration.zero),
@@ -404,7 +450,20 @@ class _Sidebar extends StatelessWidget {
                   '/handover',
                 ),
                 _nav(context, Icons.badge_outlined, 'myShift', '/shift'),
+                _nav(
+                  context,
+                  Icons.document_scanner_outlined,
+                  'documentReview',
+                  '/documents',
+                ),
               ],
+              if (repo.can(Capability.clinicalValidation))
+                _nav(
+                  context,
+                  Icons.verified_outlined,
+                  'clinicalWorkspace',
+                  '/clinical',
+                ),
               if (repo.can(Capability.coordination))
                 _nav(
                   context,
@@ -613,14 +672,10 @@ class _Header extends StatelessWidget {
             style: const TextStyle(fontSize: 11, color: muted),
           ),
           const SizedBox(width: 12),
-          IconButton(
-            tooltip: tr(context, 'accountSettings'),
-            onPressed: () => context.go('/settings'),
-            icon: const Icon(Icons.tune, size: 20, color: muted),
-          ),
         ],
         const SizedBox(width: 8),
         Semantics(
+          key: const Key('account-menu'),
           label: tr(context, 'accountSettings'),
           button: true,
           child: InkWell(
@@ -645,7 +700,9 @@ class _Header extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          repo.currentUser.role.label,
+                          repo.currentUser.rolesLabelForWard(
+                            repo.activeWard.id,
+                          ),
                           style: const TextStyle(fontSize: 9, color: muted),
                         ),
                       ],

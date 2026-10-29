@@ -548,7 +548,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get removeAttachment => 'Remove attachment';
 
   @override
-  String get chatTitle => 'Team chat';
+  String get chatTitle => 'Conversations';
 
   @override
   String get chatSubtitle => 'The right conversation, in one place.';
@@ -1145,4 +1145,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get documentOriginal => 'Original document · extracted text';
+
+  @override
+  String get clinicalWorkspace => 'Clinical review';
 }

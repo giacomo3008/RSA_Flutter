@@ -108,7 +108,7 @@ class _ShiftAttendanceCardState extends ConsumerState<ShiftAttendanceCard> {
                           border: Border.all(color: _cardBorder),
                         ),
                         child: Text(
-                          staff.role.label,
+                          staff.rolesLabelForWard(repository.activeWard.id),
                           style: const TextStyle(color: _sage, fontSize: 12),
                         ),
                       ),

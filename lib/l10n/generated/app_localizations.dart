@@ -1103,7 +1103,7 @@ abstract class AppLocalizations {
   /// No description provided for @chatTitle.
   ///
   /// In en, this message translates to:
-  /// **'Team chat'**
+  /// **'Conversations'**
   String get chatTitle;
 
   /// No description provided for @chatSubtitle.
@@ -2239,6 +2239,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Original document · extracted text'**
   String get documentOriginal;
+
+  /// No description provided for @clinicalWorkspace.
+  ///
+  /// In en, this message translates to:
+  /// **'Clinical review'**
+  String get clinicalWorkspace;
 }
 
 class _AppLocalizationsDelegate

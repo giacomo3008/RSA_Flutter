@@ -755,7 +755,10 @@ class _ReportResult extends ConsumerWidget {
                       : recipients.isEmpty
                       ? tr(context, 'reportNoRecipients')
                       : recipients
-                            .map((s) => '${s.name} · ${s.role.label}')
+                            .map(
+                              (s) =>
+                                  '${s.name} · ${s.rolesLabelForWard(event.wardId)}',
+                            )
                             .join('\n'),
                 ),
               const SizedBox(height: 24),
@@ -772,10 +775,17 @@ class _ReportResult extends ConsumerWidget {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: () =>
-                        context.go('/chat/${event.conversationId}'),
+                    key: const Key('open-reported-event-chat'),
+                    onPressed: () => runAction(context, () async {
+                      final conversation = await repo.openEventConversation(
+                        event.id,
+                      );
+                      if (context.mounted) {
+                        context.go('/chat/${conversation.id}');
+                      }
+                    }),
                     icon: const Icon(Icons.forum_outlined),
-                    label: Text(tr(context, 'openConversation')),
+                    label: const Text('Open chat'),
                   ),
                 ),
               const SizedBox(height: 8),
@@ -1276,7 +1286,7 @@ class _OperationalEventCard extends ConsumerWidget {
                   ),
                   if (event.claimedBy != null)
                     Text(
-                      repo.staffById(event.claimedBy!)?.name ??
+                      repo.staffForDisplay(event.claimedBy!)?.name ??
                           event.claimedBy!,
                       style: Theme.of(
                         context,
@@ -1484,7 +1494,7 @@ class EventDetailScreen extends ConsumerWidget {
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                '${repo.staffById(version.authorId)?.name ?? version.authorId} · ${formatDate(version.createdAt)} · ${formatTime(version.createdAt)}',
+                                '${repo.staffForDisplay(version.authorId)?.name ?? version.authorId} · ${formatDate(version.createdAt)} · ${formatTime(version.createdAt)}',
                                 style: Theme.of(
                                   context,
                                 ).textTheme.bodySmall?.copyWith(color: _slate),
@@ -1537,12 +1547,12 @@ class EventDetailScreen extends ConsumerWidget {
         .firstOrNull;
     final recipients =
         notification?.recipientIds
-            .map(repo.staffById)
+            .map(repo.staffForDisplay)
             .whereType<StaffMember>()
             .toList() ??
         <StaffMember>[];
-    final author = repo.staffById(event.authorId);
-    final claimed = repo.staffById(event.claimedBy ?? '');
+    final author = repo.staffForDisplay(event.authorId);
+    final claimed = repo.staffForDisplay(event.claimedBy ?? '');
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
@@ -1604,7 +1614,7 @@ class EventDetailScreen extends ConsumerWidget {
                 label: tr(context, 'reportedBy'),
                 value: author == null
                     ? event.authorId
-                    : '${author.name} · ${author.role.label}',
+                    : '${author.name} · ${author.rolesLabelForWard(event.wardId)}',
               ),
               if (event.notes.isNotEmpty) ...[
                 const Divider(height: 26),
@@ -1637,7 +1647,7 @@ class EventDetailScreen extends ConsumerWidget {
                             Text(v.text),
                             const SizedBox(height: 4),
                             Text(
-                              '${repo.staffById(v.authorId)?.name ?? v.authorId} · ${formatTime(v.createdAt)}',
+                              '${repo.staffForDisplay(v.authorId)?.name ?? v.authorId} · ${formatTime(v.createdAt)}',
                               style: Theme.of(
                                 context,
                               ).textTheme.bodySmall?.copyWith(color: _slate),
@@ -1664,7 +1674,7 @@ class EventDetailScreen extends ConsumerWidget {
                 event.status == EventStatus.closed
                     ? tr(context, 'eventClosedBy', {
                         'name':
-                            repo.staffById(event.closedBy ?? '')?.name ??
+                            repo.staffForDisplay(event.closedBy ?? '')?.name ??
                             event.closedBy ??
                             '',
                       })
@@ -1731,7 +1741,10 @@ class EventDetailScreen extends ConsumerWidget {
                   value: recipients.isEmpty
                       ? tr(context, 'reportNoRecipients')
                       : recipients
-                            .map((r) => '${r.name} · ${r.role.label}')
+                            .map(
+                              (r) =>
+                                  '${r.name} · ${r.rolesLabelForWard(event.wardId)}',
+                            )
                             .join('\n'),
                 ),
                 if (notification != null) ...[
@@ -1762,10 +1775,17 @@ class EventDetailScreen extends ConsumerWidget {
                 runSpacing: 10,
                 children: [
                   OutlinedButton.icon(
-                    onPressed: () =>
-                        context.push('/chat/${event.conversationId}'),
+                    key: const Key('open-event-chat'),
+                    onPressed: () => runAction(context, () async {
+                      final conversation = await repo.openEventConversation(
+                        event.id,
+                      );
+                      if (context.mounted) {
+                        context.push('/chat/${conversation.id}');
+                      }
+                    }),
                     icon: const Icon(Icons.forum_outlined),
-                    label: Text(tr(context, 'eventThread')),
+                    label: const Text('Open chat'),
                   ),
                   OutlinedButton.icon(
                     onPressed: () => context.go('/diary'),

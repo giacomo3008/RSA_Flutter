@@ -167,7 +167,7 @@
   "pauseAudio": "Pause audio",
   "playbackFailed": "Playback unavailable. Retry in a supported browser or device.",
   "removeAttachment": "Remove attachment",
-  "chatTitle": "Team chat",
+  "chatTitle": "Conversations",
   "chatSubtitle": "The right conversation, in one place.",
   "searchConversations": "Search conversations and messages",
   "noConversations": "No matching conversations",
@@ -356,5 +356,6 @@
   "availabilityavailable": "Available",
   "availabilitybusy": "Busy",
   "availabilityonBreak": "On break",
-  "documentOriginal": "Original document · extracted text"
+  "documentOriginal": "Original document · extracted text",
+  "clinicalWorkspace": "Clinical review"
 }
