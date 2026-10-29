@@ -34,7 +34,7 @@ Android needs an Android SDK, Java, and a device/emulator; the app sets a minimu
 
 A fresh application load opens the public **Login** page. Click **Login** with both fields empty to enter as **Emily Carter, Nurse, Oak Ward**. This is the temporary frontend entry requested for reviewing the app; credentials are not checked and no identity provider is contacted.
 
-**Registration** opens the account-details form; **Continue to login** returns to Login without creating an account. Account creation, credential validation and persistent sessions will be connected to the backend.
+There is no self-service registration. User accounts are added manually in the database. Credential validation and persistent sessions will be connected to the backend; old `/register` links return to Login.
 
 Use the profile avatar/name at the top right to open Account settings. **Log out** asks for confirmation, clears the frontend navigation session and returns to Login. Cancelling keeps the workspace open. Internal URLs and browser Back cannot display protected pages while signed out. Clinical records and saved work remain in the local database. The frontend session is in memory, so a full reload starts at Login again.
 
@@ -126,7 +126,7 @@ flutter drive --driver=test_driver/integration_test.dart \
   --chrome-binary=/path/to/chrome --headless
 ```
 
-In the cloud, Chromium is `/usr/bin/chromium`; add `--web-browser-flag=--no-sandbox --web-browser-flag=--disable-dev-shm-usage`. The isolated integration browser resets synthetic data in its own origin/profile. Unit/widget tests use an independent database. The cloud verification passed **110 unit/widget tests**, the browser integration flow, the release build and offline-reopening smoke check. See [verification results](docs/VERIFICATION.md) for actual outcomes, and [scope checklist](docs/CHECKLIST.md) for limitations.
+In the cloud, Chromium is `/usr/bin/chromium`; add `--web-browser-flag=--no-sandbox --web-browser-flag=--disable-dev-shm-usage`. The isolated integration browser resets synthetic data in its own origin/profile. Unit/widget tests use an independent database. The cloud verification passed **109 unit/widget tests**, the browser integration flow, the release build and offline-reopening smoke check. See [verification results](docs/VERIFICATION.md) for actual outcomes, and [scope checklist](docs/CHECKLIST.md) for limitations.
 
 ## Prototype boundaries
 
@@ -140,7 +140,7 @@ Backlog: FHIR connectors; no-code routing editor; forecasting/advanced workload 
 
 ## Screenshots
 
-[Login desktop](docs/screenshots/login-desktop.png) · [Login phone](docs/screenshots/login-mobile.png) · [Registration](docs/screenshots/registration-desktop.png) · [Account/logout](docs/screenshots/account-desktop.png)
+[Login desktop](docs/screenshots/login-desktop.png) · [Login phone](docs/screenshots/login-mobile.png) · [Account/logout](docs/screenshots/account-desktop.png)
 
 ![RSA desktop workspace](docs/screenshots/desktop.png)
 

@@ -73,7 +73,7 @@ class _RsaAppState extends ConsumerState<RsaSessionApp>
       refreshListenable: Listenable.merge([r, session]),
       redirect: (context, state) {
         final path = state.uri.path;
-        final accessPage = path == '/login' || path == '/register';
+        final accessPage = path == '/login';
         if (!session.isSignedIn) return accessPage ? null : '/login';
         final care = r.can(Capability.care);
         final landing = care
@@ -107,10 +107,7 @@ class _RsaAppState extends ConsumerState<RsaSessionApp>
           path: '/login',
           builder: (context, state) => const AccessScreen(),
         ),
-        GoRoute(
-          path: '/register',
-          builder: (context, state) => const AccessScreen(register: true),
-        ),
+        GoRoute(path: '/register', redirect: (context, state) => '/login'),
         GoRoute(path: '/', redirect: (context, state) => '/home'),
         GoRoute(path: '/ocr', redirect: (context, state) => '/documents'),
         GoRoute(

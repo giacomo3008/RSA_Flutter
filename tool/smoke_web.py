@@ -47,10 +47,9 @@ with sync_playwright() as p:
     page.set_viewport_size({'width': 390, 'height': 844})
     page.screenshot(path=str(shots / 'login-mobile.png'))
     page.set_viewport_size({'width': 1440, 'height': 1000})
-    page.get_by_role('button', name='Registration', exact=True).click()
-    expect(page.get_by_role('button', name='Continue to login', exact=True)).to_be_visible()
-    page.screenshot(path=str(shots / 'registration-desktop.png'))
-    page.get_by_role('button', name='Continue to login', exact=True).click()
+    assert page.get_by_role('button', name='Registration', exact=True).count() == 0
+    navigate(page, 'register')
+    expect(page.get_by_role('button', name='Login', exact=True)).to_be_visible()
     login(page)  # No email or password is supplied.
     expect(page.get_by_role('button', name='Check out', exact=True)).to_be_visible()
     page.screenshot(path=str(shots / 'desktop.png'))
@@ -155,6 +154,6 @@ with sync_playwright() as p:
     login(page)
     expect(page.get_by_role('button', name='Check out', exact=True)).to_be_visible()
     assert not errors, errors
-    print(f'PASS: public login/registration, empty login as Emily, confirmed/cancelled logout, signed-out URL/back guards, first chat open, handover/documents/conversations, durable records and offline reopening ({cached} cached assets), mobile navigation; no page errors.')
+    print(f'PASS: login only, legacy registration redirect, empty login as Emily, confirmed/cancelled logout, signed-out URL/back guards, first chat open, handover/documents/conversations, durable records and offline reopening ({cached} cached assets), mobile navigation; no page errors.')
     context.close()
     browser.close()

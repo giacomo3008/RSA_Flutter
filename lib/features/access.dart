@@ -1,26 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../core/providers.dart';
 import '../shared/ui.dart';
 
 class AccessScreen extends ConsumerStatefulWidget {
-  final bool register;
-  const AccessScreen({super.key, this.register = false});
+  const AccessScreen({super.key});
   @override
   ConsumerState<AccessScreen> createState() => _AccessScreenState();
 }
 
 class _AccessScreenState extends ConsumerState<AccessScreen> {
-  final _name = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _showPassword = false;
 
   @override
   void dispose() {
-    _name.dispose();
     _email.dispose();
     _password.dispose();
     super.dispose();
@@ -40,7 +36,6 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
   @override
   Widget build(BuildContext context) {
     final busy = ref.watch(accessSessionProvider).isSigningIn;
-    final registration = widget.register;
     return Scaffold(
       key: const Key('access-screen'),
       body: SafeArea(
@@ -79,71 +74,22 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
                             children: [
                               const _AccessLogo(),
                               const SizedBox(height: 30),
-                              Text(
-                                registration
-                                    ? 'Join your care workspace'
-                                    : 'Welcome back',
-                                style: const TextStyle(
+                              const Text(
+                                'Welcome back',
+                                style: TextStyle(
                                   fontSize: 29,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: -.8,
                                 ),
                               ),
                               const SizedBox(height: 10),
-                              Text(
-                                registration
-                                    ? 'Set up your account details to get started.'
-                                    : 'Login to keep your team and your shift in view.',
-                                style: const TextStyle(
-                                  color: muted,
-                                  height: 1.6,
-                                ),
-                              ),
-                              const SizedBox(height: 24),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _AccessTab(
-                                      label: 'Login',
-                                      selected: !registration,
-                                      onTap: busy
-                                          ? null
-                                          : () => context.go('/login'),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: _AccessTab(
-                                      label: 'Registration',
-                                      selected: registration,
-                                      onTap: busy
-                                          ? null
-                                          : () => context.go('/register'),
-                                    ),
-                                  ),
-                                ],
+                              const Text(
+                                'Login to keep your team and your shift in view.',
+                                style: TextStyle(color: muted, height: 1.6),
                               ),
                               const SizedBox(height: 26),
-                              if (registration) ...[
-                                TextField(
-                                  key: const Key('register-name'),
-                                  controller: _name,
-                                  enabled: !busy,
-                                  textCapitalization: TextCapitalization.words,
-                                  textInputAction: TextInputAction.next,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Full name',
-                                    prefixIcon: Icon(Icons.person_outline),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                              ],
                               TextField(
-                                key: ValueKey(
-                                  registration
-                                      ? 'register-email'
-                                      : 'login-email',
-                                ),
+                                key: const Key('login-email'),
                                 controller: _email,
                                 enabled: !busy,
                                 keyboardType: TextInputType.emailAddress,
@@ -155,20 +101,12 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
                               ),
                               const SizedBox(height: 16),
                               TextField(
-                                key: ValueKey(
-                                  registration
-                                      ? 'register-password'
-                                      : 'login-password',
-                                ),
+                                key: const Key('login-password'),
                                 controller: _password,
                                 enabled: !busy,
                                 obscureText: !_showPassword,
                                 textInputAction: TextInputAction.done,
-                                onSubmitted: busy
-                                    ? null
-                                    : (_) => registration
-                                          ? context.go('/login')
-                                          : _login(),
+                                onSubmitted: busy ? null : (_) => _login(),
                                 decoration: InputDecoration(
                                   labelText: 'Password',
                                   prefixIcon: const Icon(Icons.lock_outline),
@@ -194,16 +132,8 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
                               SizedBox(
                                 width: double.infinity,
                                 child: FilledButton.icon(
-                                  key: ValueKey(
-                                    registration
-                                        ? 'register-continue'
-                                        : 'login-submit',
-                                  ),
-                                  onPressed: busy
-                                      ? null
-                                      : registration
-                                      ? () => context.go('/login')
-                                      : _login,
+                                  key: const Key('login-submit'),
+                                  onPressed: busy ? null : _login,
                                   icon: busy
                                       ? const SizedBox(
                                           width: 18,
@@ -217,11 +147,7 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
                                           Icons.arrow_forward,
                                           size: 19,
                                         ),
-                                  label: Text(
-                                    registration
-                                        ? 'Continue to login'
-                                        : 'Login',
-                                  ),
+                                  label: const Text('Login'),
                                 ),
                               ),
                               const SizedBox(height: 24),
@@ -286,33 +212,6 @@ class _AccessLogo extends StatelessWidget {
         ),
       ),
     ],
-  );
-}
-
-class _AccessTab extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback? onTap;
-  const _AccessTab({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-  @override
-  Widget build(BuildContext context) => TextButton(
-    onPressed: onTap,
-    style: TextButton.styleFrom(
-      foregroundColor: selected ? teal : muted,
-      backgroundColor: selected ? const Color(0xffe8f2ed) : canvas,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-    ),
-    child: Text(
-      label,
-      style: TextStyle(
-        fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
-      ),
-    ),
   );
 }
 

@@ -138,13 +138,12 @@ void main() {
   );
 
   testWidgets(
-    'registration remains public and returns to login without signing in',
+    'old registration links return to login without signup controls',
     (tester) async {
       await show(tester, location: '/register');
-      expect(find.byKey(const Key('register-name')), findsOneWidget);
+      expect(find.text('Registration'), findsNothing);
+      expect(find.byKey(const Key('register-name')), findsNothing);
       expect(find.byType(WorkspaceShell), findsNothing);
-      await tester.tap(find.byKey(const Key('register-continue')));
-      await tester.pumpAndSettle();
       expect(router(tester).routeInformationProvider.value.uri.path, '/login');
       expect(find.byKey(const Key('login-submit')), findsOneWidget);
       await finish(tester);
@@ -184,26 +183,19 @@ void main() {
     },
   );
 
-  for (final registration in [false, true]) {
-    testWidgets(
-      'access page register=$registration fits a phone with larger text',
-      (tester) async {
-        await show(
-          tester,
-          location: registration ? '/register' : '/login',
-          size: const Size(320, 720),
-          textScale: 1.3,
-        );
-        final action = find.byKey(
-          ValueKey(registration ? 'register-continue' : 'login-submit'),
-        );
-        await tester.ensureVisible(action);
-        await tester.pumpAndSettle();
-        expect(action.hitTestable(), findsOneWidget);
-        await finish(tester);
-      },
+  testWidgets('login fits a phone with larger text', (tester) async {
+    await show(
+      tester,
+      location: '/login',
+      size: const Size(320, 720),
+      textScale: 1.3,
     );
-  }
+    final action = find.byKey(const Key('login-submit'));
+    await tester.ensureVisible(action);
+    await tester.pumpAndSettle();
+    expect(action.hitTestable(), findsOneWidget);
+    await finish(tester);
+  });
 
   for (final size in [const Size(390, 844), const Size(1440, 1000)]) {
     testWidgets(

@@ -7,7 +7,7 @@ Workspace redesign checked on 28 October 2026; handover presentation, staff-upda
 | `flutter pub get` / `flutter gen-l10n` | Passed; lockfile and generated ARB accessors included. |
 | `dart format --output=none --set-exit-if-changed lib test integration_test test_driver` | Passed; 43 Dart files, no formatting changes. |
 | `flutter analyze` | Passed: no issues. |
-| `flutter test --reporter expanded` | **110 passed**: 57 domain/persistence tests and 53 widget tests. No skipped tests. |
+| `flutter test --reporter expanded` | **109 passed**: 57 domain/persistence tests and 52 widget tests. No skipped tests. |
 | Browser integration through Flutter drive | **1 passed**, zero framework errors. Actual UI report → inbox → event conversation (does not claim) → explicit claim → saved correction with safe dialog dismissal → diary → handover sources/amendment. |
 | `./tool/build_web.sh` | Passed release web compilation, local engine/font assets, 46-file static-shell cache. The compiler's optional WASM dry run also succeeded; a dedicated `--wasm` deployment was not exercised. |
 | `python3 tool/smoke_web.py` against the served release build | Passed handover/document/conversation page navigation, hidden unopened event discussions, startup, real attendance change, refresh persistence, service-worker installation, complete offline reopening, 390px mobile navigation/report and no JavaScript page errors. |
@@ -58,8 +58,10 @@ The release browser check also types and submits an update, reloads the handover
 
 ## Public access and first chat opening
 
-Nine widget regressions cover default login, signed-out clinical/administrative/unknown URL guards, empty-field entry as Emily even when a different local account was selected previously, registration navigation, logout cancellation and confirmation with cleared navigation, both access forms at 320px with enlarged text, and immediate first conversation opening on phone and desktop with a long thread. Chat routes use NoTransitionPage and the reverse viewport starts at its minimum extent before later frames.
+Eight widget regressions cover default login, signed-out clinical/administrative/unknown URL guards, empty-field entry as Emily even when a different local account was selected previously, redirection of old registration links to login, logout cancellation and confirmation with cleared navigation, login at 320px with enlarged text, and immediate first conversation opening on phone and desktop with a long thread. Chat routes use NoTransitionPage and the reverse viewport starts at its minimum extent before later frames.
 
 Existing care and role workflow tests explicitly inject an authenticated fixture session; the production provider remains signed out by default. No user-facing role selector or credential-validation claim was introduced.
 
-The release-browser check covers login/registration, no-data login, first conversation opening, logout confirmation/cancellation, browser Back and direct URL denial while signed out, and renewed frontend entry after full reload. Record persistence and offline reopening are checked after entering through the public login page. The temporary session is intentionally not persisted and no backend authentication or account creation is performed.
+The release-browser check covers login without signup, no-data login, first conversation opening, logout confirmation/cancellation, browser Back and direct URL denial while signed out, and renewed frontend entry after full reload. Record persistence and offline reopening are checked after entering through the public login page. The temporary session is intentionally not persisted and no backend authentication or account creation is performed.
+
+Self-service registration was removed at the user's request. Accounts are created manually in the database. The login screen contains no registration tab or form; the former `/register` route redirects to Login.

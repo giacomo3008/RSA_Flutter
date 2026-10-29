@@ -1,7 +1,7 @@
 # Implementation scope
 
 - [x] Shared Flutter Android/iOS/Web project; pinned dependencies and native permissions.
-- [x] Adaptive Material 3 shell, public login/registration UI, confirmed logout, signed-out navigation guards, one-tap reporting, go_router history and Riverpod updates.
+- [x] Adaptive Material 3 shell, public login UI with manually provisioned accounts, confirmed logout, signed-out navigation guards, one-tap reporting, go_router history and Riverpod updates.
 - [x] Connected twelve-entity domain, explicit ward-role capabilities, service-layer checks.
 - [x] Durable Drift native/web storage, matching SQLite WASM/worker, transactional idempotency and claims.
 - [x] Eight event types/default priorities, resident/other subject, editable time, place, optional notes/media and drafts.
