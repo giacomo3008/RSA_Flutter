@@ -633,7 +633,7 @@ class Handover {
   final List<Map<String, dynamic>> sourceSnapshots;
   final List<String> sourceEventIds, incomingStaffIds;
   final Map<String, String> acknowledgements;
-  final List<RecordVersion> versions, contributions;
+  final List<RecordVersion> versions, contributions, pendingContributions;
   Handover({
     required this.id,
     required this.wardId,
@@ -660,12 +660,14 @@ class Handover {
     Map<String, String>? acknowledgements,
     List<RecordVersion>? versions,
     List<RecordVersion>? contributions,
+    List<RecordVersion>? pendingContributions,
   }) : sourceSnapshots = sourceSnapshots ?? [],
        sourceEventIds = sourceEventIds ?? [],
        incomingStaffIds = incomingStaffIds ?? [],
        acknowledgements = acknowledgements ?? {},
        versions = versions ?? [],
-       contributions = contributions ?? [];
+       contributions = contributions ?? [],
+       pendingContributions = pendingContributions ?? [];
   Map<String, dynamic> toJson() => {
     'id': id,
     'wardId': wardId,
@@ -692,6 +694,9 @@ class Handover {
     'acknowledgements': acknowledgements,
     'versions': versions.map((v) => v.toJson()).toList(),
     'contributions': contributions.map((v) => v.toJson()).toList(),
+    'pendingContributions': pendingContributions
+        .map((v) => v.toJson())
+        .toList(),
   };
   factory Handover.fromJson(Map<String, dynamic> j) => Handover(
     id: j['id'],
@@ -725,6 +730,9 @@ class Handover {
         .map((v) => RecordVersion.fromJson(objectMap(v)))
         .toList(),
     contributions: (j['contributions'] as List)
+        .map((v) => RecordVersion.fromJson(objectMap(v)))
+        .toList(),
+    pendingContributions: (j['pendingContributions'] as List? ?? [])
         .map((v) => RecordVersion.fromJson(objectMap(v)))
         .toList(),
   );

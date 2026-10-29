@@ -1,13 +1,13 @@
 # Verification results
 
-Workspace redesign and regression checks executed in the cloud on 28 October 2026 using Flutter 3.47.8, Dart 3.13.7 and Chromium/ChromeDriver 154.0.8037.57.
+Workspace redesign checked on 28 October 2026; handover presentation, staff-update and role-navigation checks repeated on 29 October 2026 using Flutter 3.47.8, Dart 3.13.7 and Chromium/ChromeDriver 154.0.8037.57.
 
 | Check | Actual result |
 | --- | --- |
 | `flutter pub get` / `flutter gen-l10n` | Passed; lockfile and generated ARB accessors included. |
-| `dart format --output=none --set-exit-if-changed lib test integration_test test_driver` | Passed; 36 Dart files, no formatting changes. |
+| `dart format --output=none --set-exit-if-changed lib test integration_test test_driver` | Passed; 40 Dart files, no formatting changes. |
 | `flutter analyze` | Passed: no issues. |
-| `flutter test --reporter expanded` | **86 passed**: 53 domain/persistence tests and 33 widget tests. No skipped tests. |
+| `flutter test --reporter expanded` | **101 passed**: 57 domain/persistence tests and 44 widget tests. No skipped tests. |
 | Browser integration through Flutter drive | **1 passed**, zero framework errors. Actual UI report → inbox → event conversation (does not claim) → explicit claim → saved correction with safe dialog dismissal → diary → handover sources/amendment. |
 | `./tool/build_web.sh` | Passed release web compilation, local engine/font assets, 46-file static-shell cache. The compiler's optional WASM dry run also succeeded; a dedicated `--wasm` deployment was not exercised. |
 | `python3 tool/smoke_web.py` against the served release build | Passed handover/document/conversation page navigation, hidden unopened event discussions, startup, real attendance change, refresh persistence, service-worker installation, complete offline reopening, 390px mobile navigation/report and no JavaScript page errors. |
@@ -49,3 +49,9 @@ New tests exercise personal event-conversation subscriptions and SQLite reopenin
 The new widget workflows cover Open chat, the + colleague picker, document confirmation and subsequent correction, coordinator draft editing, historical versions without current-version actions, and seven role/workspace pages at 360px with 1.3× text. Retained reports, document reviews, handovers and conversations remain readable when their former authors move to another ward, while strict staff-profile lookup remains denied.
 
 Release screenshots include handover on desktop/mobile, Document review and Conversations. The React ZIP exceeded the transfer limit; the supplied screenshot and three PDFs were inspected instead. No real AI, OCR or SSO provider was used or represented as connected.
+
+## Handover presentation and staff updates
+
+The 29 October checks add seven positive role-navigation cases and eight focused handover checks: pending updates preserve every signed field, unauthorized inclusion is denied, coordinator inclusion preserves authors/times and archived receipts, stale record/version submissions fail, SQLite reopening retains pending updates, signed staff can submit through the visible input, coordinators include updates through the visible button, grouped history avoids duplicate version cards and signed report cards retain their historical status after live closure.
+
+The release browser check also types and submits an update, reloads the handover and checks that version 1 remains signed. Updated screenshots include report cards and the grouped history. The browser integration completed with frameworkErrors empty. All seven role pages are also covered by the existing narrow-screen checks.

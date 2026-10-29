@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +6,9 @@ import '../core/models.dart';
 import '../core/providers.dart';
 import '../core/repository.dart';
 import '../shared/ui.dart';
+import 'handover_record_content.dart';
+import 'handover_history.dart';
+import 'handover_contribution.dart';
 
 /// A handover document is reviewed and signed independently of live event work.
 class HandoverScreen extends ConsumerStatefulWidget {
@@ -19,7 +20,8 @@ class HandoverScreen extends ConsumerStatefulWidget {
 
 class _HandoverScreenState extends ConsumerState<HandoverScreen> {
   final _draft = TextEditingController();
-  final _contribution = TextEditingController();
+  final _historyKey = GlobalKey();
+  final _recordKey = GlobalKey();
   bool _editing = false;
   bool _busy = false;
   String? _recordIdentity;
@@ -28,7 +30,6 @@ class _HandoverScreenState extends ConsumerState<HandoverScreen> {
   @override
   void dispose() {
     _draft.dispose();
-    _contribution.dispose();
     super.dispose();
   }
 
@@ -136,7 +137,7 @@ class _HandoverScreenState extends ConsumerState<HandoverScreen> {
         .toList();
     final versions = <int, RecordVersion>{};
     for (final v in h.versions) {
-      final data = _versionData(v);
+      final data = handoverVersionData(v);
       if (data['signedBy'] != null || data['kind'] == 'signed') {
         versions[v.version] = v;
       }
@@ -144,7 +145,9 @@ class _HandoverScreenState extends ConsumerState<HandoverScreen> {
     final historical = _historicalVersion == null
         ? null
         : versions[_historicalVersion];
-    final historicalData = historical == null ? null : _versionData(historical);
+    final historicalData = historical == null
+        ? null
+        : handoverVersionData(historical);
     final displayText =
         historicalData?['narrative'] as String? ?? r.handoverText(h);
     final snapshots = historicalData == null
@@ -153,6 +156,10 @@ class _HandoverScreenState extends ConsumerState<HandoverScreen> {
               .map(objectMap)
               .toList();
     final viewingHistory = historical != null;
+    final displayedAt = viewingHistory
+        ? DateTime.tryParse(historicalData?['signedAt']?.toString() ?? '') ??
+              historical.createdAt
+        : h.signedAt ?? h.preparedAt;
 
     return ListView(
       key: const Key('handover-screen'),
@@ -192,6 +199,7 @@ class _HandoverScreenState extends ConsumerState<HandoverScreen> {
         LayoutBuilder(
           builder: (context, constraints) {
             final record = SectionCard(
+              key: _recordKey,
               padding: const EdgeInsets.all(22),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,6 +234,10 @@ class _HandoverScreenState extends ConsumerState<HandoverScreen> {
                           initialValue: _historicalVersion ?? h.version,
                           isExpanded: true,
                           decoration: const InputDecoration(
+                            labelText: 'Document version',
+                            helperText:
+                                'Earlier signed versions open read only.',
+                            helperMaxLines: 2,
                             isDense: true,
                             contentPadding: EdgeInsets.symmetric(
                               horizontal: 12,
@@ -259,6 +271,20 @@ class _HandoverScreenState extends ConsumerState<HandoverScreen> {
                                 ),
                         ),
                       ),
+                      TextButton.icon(
+                        key: const Key('handover-show-history'),
+                        onPressed: () {
+                          final target = _historyKey.currentContext;
+                          if (target != null) {
+                            Scrollable.ensureVisible(
+                              target,
+                              duration: const Duration(milliseconds: 300),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.history_rounded, size: 18),
+                        label: const Text('Version history'),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -274,8 +300,7 @@ class _HandoverScreenState extends ConsumerState<HandoverScreen> {
                             ? 'Signed handover'
                             : 'Draft · Review required',
                       ),
-                      if ((historical?.createdAt ?? h.signedAt ?? h.preparedAt)
-                          case final time?)
+                      if (displayedAt case final time?)
                         Text(
                           '${formatDate(time)} · ${formatTime(time)}',
                           style: const TextStyle(fontSize: 11, color: muted),
@@ -350,7 +375,13 @@ class _HandoverScreenState extends ConsumerState<HandoverScreen> {
                           'The coordinator can prepare a draft from linked reports or write the handover directly.',
                     )
                   else
-                    _Narrative(text: displayText),
+                    HandoverRecordContent(
+                      text: displayText,
+                      frozen: signed || viewingHistory,
+                      events: signed || viewingHistory
+                          ? snapshots.map(CareEvent.fromJson).toList()
+                          : sources,
+                    ),
                   const SizedBox(height: 24),
                   if (!viewingHistory && !_editing) ...[
                     Text(
@@ -476,85 +507,73 @@ class _HandoverScreenState extends ConsumerState<HandoverScreen> {
                       ),
                     ],
                   ],
-                  const SizedBox(height: 24),
-                  const Divider(),
-                  const SizedBox(height: 16),
-                  const Row(
-                    children: [
-                      Icon(Icons.link, color: teal, size: 18),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Linked source reports',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            color: teal,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  if ((signed || viewingHistory) && snapshots.isNotEmpty)
-                    for (final snapshot in snapshots)
-                      _SourceReport(
-                        event: CareEvent.fromJson(snapshot),
-                        frozen: true,
-                      )
-                  else
-                    for (final event in sources)
-                      _SourceReport(event: event, frozen: false),
-                  if (sources.isEmpty && snapshots.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Text(
-                        'No source reports linked.',
-                        style: TextStyle(color: muted),
-                      ),
-                    ),
                   if (h.contributions.isNotEmpty && !viewingHistory) ...[
                     const SizedBox(height: 20),
-                    const Text(
-                      'Staff contributions',
-                      style: TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                    for (final contribution in h.contributions)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 14),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(contribution.text),
-                            const SizedBox(height: 5),
-                            Text(
-                              '${r.staffForDisplay(contribution.authorId)?.name ?? contribution.authorId} · ${formatTime(contribution.createdAt)}',
-                              style: const TextStyle(
-                                color: muted,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
+                    ExpansionTile(
+                      tilePadding: EdgeInsets.zero,
+                      title: Text(
+                        'Staff contributions (${h.contributions.length})',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
                         ),
                       ),
-                  ],
-                  if (h.versions.isNotEmpty) ...[
-                    const SizedBox(height: 20),
-                    ExpansionTile(
-                      key: const Key('handover-version-history'),
-                      tilePadding: EdgeInsets.zero,
-                      title: const Text(
-                        'Version history',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      subtitle: const Text(
+                        'Source notes with author and time',
+                        style: TextStyle(color: muted, fontSize: 11),
                       ),
                       children: [
-                        for (final version in h.versions.reversed)
-                          _HistoryEntry(version: version, repository: r),
+                        for (final contribution in h.contributions)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  contribution.text,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    height: 1.6,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  '${r.staffForDisplay(contribution.authorId)?.name ?? contribution.authorId} · ${formatDate(contribution.createdAt)} ${formatTime(contribution.createdAt)}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: muted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                       ],
                     ),
                   ],
+                  const SizedBox(height: 26),
+                  const Divider(),
+                  const SizedBox(height: 20),
+                  Container(
+                    key: _historyKey,
+                    child: HandoverVersionHistory(
+                      key: const Key('handover-version-history'),
+                      handover: h,
+                      repository: r,
+                      viewedVersion: _historicalVersion,
+                      onViewVersion: (version) {
+                        setState(() => _historicalVersion = version);
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          final target = _recordKey.currentContext;
+                          if (target != null) {
+                            Scrollable.ensureVisible(
+                              target,
+                              duration: const Duration(milliseconds: 250),
+                            );
+                          }
+                        });
+                      },
+                    ),
+                  ),
                 ],
               ),
             );
@@ -591,7 +610,10 @@ class _HandoverScreenState extends ConsumerState<HandoverScreen> {
                   const SizedBox(height: 18),
                   _historicalReceipts(r, historicalData!),
                 ] else ...[
-                  _contributionCard(r, signed),
+                  HandoverContributionCard(
+                    key: ValueKey('contribution-${h.id}'),
+                    editingDocument: _editing,
+                  ),
                   const SizedBox(height: 18),
                   _incomingCard(r, h, signed),
                 ],
@@ -674,66 +696,6 @@ class _HandoverScreenState extends ConsumerState<HandoverScreen> {
       ),
     );
   }
-
-  Widget _contributionCard(RsaRepository r, bool signed) => SectionCard(
-    padding: const EdgeInsets.all(20),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Row(
-          children: [
-            Icon(Icons.edit_note_outlined, size: 19),
-            SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Your shift contribution',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Text(
-          signed
-              ? 'This version is signed. Ask the coordinator to open an amendment for additional information.'
-              : 'Add the facts and open items you want the next shift to know.',
-          style: const TextStyle(color: muted, fontSize: 12, height: 1.6),
-        ),
-        if (!signed) ...[
-          const SizedBox(height: 16),
-          TextField(
-            key: const Key('handover-contribution'),
-            controller: _contribution,
-            minLines: 5,
-            maxLines: 8,
-            onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(
-              hintText: 'What should the next team know?',
-            ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              key: const Key('handover-add-contribution'),
-              onPressed: _busy || _contribution.text.trim().isEmpty
-                  ? null
-                  : () => _act(
-                      () async {
-                        await r.contributeSummary(_contribution.text);
-                        _contribution.clear();
-                      },
-                      message:
-                          'Contribution added. Refresh or edit the draft before review.',
-                    ),
-              icon: const Icon(Icons.send_outlined, size: 17),
-              label: const Text('Add contribution'),
-            ),
-          ),
-        ],
-      ],
-    ),
-  );
 
   Widget _historicalReceipts(RsaRepository r, Map<String, dynamic> data) {
     final receipts = objectMap(data['acknowledgements'] ?? {});
@@ -1130,73 +1092,6 @@ class _UrgentItems extends StatelessWidget {
   );
 }
 
-class _Narrative extends StatelessWidget {
-  final String text;
-  const _Narrative({required this.text});
-  @override
-  Widget build(BuildContext context) {
-    const headings = {
-      'Important reported events',
-      'Open follow-ups',
-      'Unresolved notifications',
-      'Items to pass to the next shift',
-    };
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final paragraph in text.split('\n'))
-          if (paragraph.isEmpty)
-            const SizedBox(height: 13)
-          else
-            Padding(
-              padding: EdgeInsets.only(
-                top: headings.contains(paragraph) ? 8 : 3,
-                bottom: 3,
-              ),
-              child: SelectableText(
-                paragraph,
-                style: TextStyle(
-                  fontSize: 13,
-                  height: 1.7,
-                  fontWeight: headings.contains(paragraph)
-                      ? FontWeight.w800
-                      : FontWeight.w400,
-                  color: headings.contains(paragraph)
-                      ? const Color(0xff6c895c)
-                      : ink,
-                ),
-              ),
-            ),
-      ],
-    );
-  }
-}
-
-class _SourceReport extends StatelessWidget {
-  final CareEvent event;
-  final bool frozen;
-  const _SourceReport({required this.event, required this.frozen});
-  @override
-  Widget build(BuildContext context) => ListTile(
-    contentPadding: EdgeInsets.zero,
-    leading: Icon(
-      eventIcon(event.type),
-      size: 20,
-      color: priorityColor(event.priority),
-    ),
-    title: Text(
-      '${event.type.label} · ${event.residentId ?? event.subject}',
-      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-    ),
-    subtitle: Text(
-      '${event.priority.label} · ${event.status.label}${frozen ? ' at signature' : ''}',
-      style: const TextStyle(fontSize: 11),
-    ),
-    trailing: const Icon(Icons.arrow_outward, size: 17, color: muted),
-    onTap: () => context.go('/event/${event.id}'),
-  );
-}
-
 class _Attribution extends StatelessWidget {
   final String label, name;
   final DateTime? at;
@@ -1209,101 +1104,6 @@ class _Attribution extends StatelessWidget {
       style: const TextStyle(color: muted, fontSize: 11),
     ),
   );
-}
-
-Map<String, dynamic> _versionData(RecordVersion version) {
-  try {
-    final result = jsonDecode(version.text);
-    if (result is Map) return objectMap(result);
-  } catch (_) {
-    // Earlier persisted records can contain plain text.
-  }
-  return {
-    'narrative': version.text.startsWith('Signed synthetic handover.')
-        ? 'Signed handover. The narrative was not retained for this earlier record.'
-        : version.text,
-  };
-}
-
-class _HistoryEntry extends StatelessWidget {
-  final RecordVersion version;
-  final RsaRepository repository;
-  const _HistoryEntry({required this.version, required this.repository});
-  @override
-  Widget build(BuildContext context) {
-    final data = _versionData(version);
-    final title = switch (data['kind']) {
-      'signed' => 'Signed version',
-      'amendment' => 'Amendment opened',
-      'draftEdited' => 'Draft edited',
-      'draftReplaced' => 'Previous draft retained',
-      _ => 'Retained record',
-    };
-    final previous = data['narrative'] as String? ?? '';
-    final updated = data['updatedNarrative'] as String?;
-    final original = data['originalDraft'] as String?;
-    final receipts = objectMap(data['acknowledgements'] ?? {});
-    return ExpansionTile(
-      tilePadding: EdgeInsets.zero,
-      title: Text(
-        'Version ${version.version} · $title',
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-      ),
-      subtitle: Text(
-        '${repository.staffForDisplay(version.authorId)?.name ?? version.authorId} · ${formatDate(version.createdAt)} ${formatTime(version.createdAt)}',
-        style: const TextStyle(fontSize: 11, color: muted),
-      ),
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (data['amendment'] != null) ...[
-                Text(
-                  data['amendment'].toString(),
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 12),
-              ],
-              if (updated != null) ...[
-                const Text(
-                  'Saved text',
-                  style: TextStyle(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 6),
-                _Narrative(text: updated),
-                const SizedBox(height: 12),
-                const Text(
-                  'Previous text',
-                  style: TextStyle(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 6),
-              ],
-              if (previous.isNotEmpty) _Narrative(text: previous),
-              if (original != null && original != previous) ...[
-                const SizedBox(height: 18),
-                const Text(
-                  'Original prepared draft',
-                  style: TextStyle(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 8),
-                _Narrative(text: original),
-              ],
-              for (final entry in receipts.entries)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    'Acknowledged by ${repository.staffForDisplay(entry.key)?.name ?? entry.key} · ${formatTime(DateTime.parse(entry.value.toString()))}',
-                    style: const TextStyle(color: muted, fontSize: 11),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 class _AmendmentDialog extends StatefulWidget {

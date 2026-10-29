@@ -1205,26 +1205,81 @@ class RsaRepository extends ChangeNotifier implements EventRepository {
     _log('Media retained', media.id, media.base64Data);
     return media;
   });
-  Future<void> contributeSummary(String text) => _mutate(() {
+  Future<void> contributeSummary(
+    String text, {
+    String? expectedHandoverId,
+    int? expectedVersion,
+  }) => _mutate(() {
     _require(Capability.care, _wardId);
     if (text.trim().isEmpty) {
       throw StateError('Write a summary before adding it.');
     }
     final h = handover;
+    _checkHandoverContext(h, expectedHandoverId, expectedVersion);
+    final entry = RecordVersion(
+      version: h.version,
+      authorId: _personaId,
+      text: text.trim(),
+      createdAt: now,
+    );
     if (h.signedBy != null) {
-      _newHandoverVersion(h, 'Staff contribution added after signing.');
+      h.pendingContributions.add(entry);
+      _log('Staff update awaiting coordinator review', h.id, text.trim());
+      return;
     }
     _clearHandoverReview(h);
     h.needsDraftUpdate = true;
-    h.contributions.add(
-      RecordVersion(
-        version: h.version,
-        authorId: _personaId,
-        text: text.trim(),
-        createdAt: now,
+    h.contributions.add(entry);
+    _log('Staff summary retained', h.id, text);
+  });
+
+  void _checkHandoverContext(Handover h, String? id, int? version) {
+    if ((id != null && h.id != id) ||
+        (version != null && h.version != version)) {
+      throw StateError(
+        'The handover changed. Review the current version and try again.',
+      );
+    }
+  }
+
+  Future<void> includePendingHandoverUpdates({
+    required String expectedHandoverId,
+    required int expectedVersion,
+  }) => _mutate(() {
+    _require(Capability.coordination, _wardId);
+    final h = handover;
+    _checkHandoverContext(h, expectedHandoverId, expectedVersion);
+    if (h.pendingContributions.isEmpty) {
+      throw StateError('There are no staff updates awaiting review.');
+    }
+    if (h.signedBy != null) {
+      _newHandoverVersion(
+        h,
+        'Staff updates included after coordinator review.',
+      );
+    }
+    final updates = List<RecordVersion>.of(h.pendingContributions);
+    h.contributions.addAll(
+      updates.map(
+        (v) => RecordVersion(
+          version: h.version,
+          authorId: v.authorId,
+          text: v.text,
+          createdAt: v.createdAt,
+        ),
       ),
     );
-    _log('Staff summary retained', h.id, text);
+    h.draftText = [
+      h.draftText ?? '',
+      'Additional staff updates',
+      ...updates.map((v) => v.text),
+    ].where((s) => s.isNotEmpty).join('\n\n');
+    h.pendingContributions.clear();
+    _clearHandoverReview(h);
+    h.needsDraftUpdate = false;
+    h.editedBy = _personaId;
+    h.editedAt = now;
+    _log('Staff updates included in handover draft', h.id);
   });
 
   /// Opens an existing ward/shift record or prepares its source selection.

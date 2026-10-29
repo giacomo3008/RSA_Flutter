@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:rsa/app/app.dart';
 import 'package:rsa/core/database.dart';
 import 'package:rsa/core/models.dart';
 import 'package:rsa/core/providers.dart';
 import 'package:rsa/core/repository.dart';
-import 'package:rsa/features/role_workspaces.dart';
 import 'package:rsa/features/physician.dart';
+import 'package:rsa/features/workspace.dart';
 import 'package:rsa/shared/ui.dart';
 
 void main() {
@@ -22,6 +23,51 @@ void main() {
     );
   });
   tearDown(() async => repository.close());
+
+  for (final account in <(String, String, Type)>[
+    ('nurse-1', '/home', HomeScreen),
+    ('assistant-1', '/home', HomeScreen),
+    ('technician-1', '/home', HomeScreen),
+    ('physician-1', '/clinical', PhysicianScreen),
+    ('coordinator-1', '/coordination', CoordinationScreen),
+    ('management-1', '/management', ManagementScreen),
+    ('admin-1', '/admin', AdminScreen),
+  ]) {
+    testWidgets(
+      'the ${account.$1} account can open its professional workspace',
+      (tester) async {
+        tester.view.physicalSize = const Size(1440, 1100);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        await tester.runAsync(() => repository.switchPersona(account.$1));
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              rsaRepositoryProvider.overrideWith((ref) => repository),
+            ],
+            child: RsaApp(initialLocation: account.$2),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(account.$3), findsOneWidget);
+        expect(
+          find.byKey(const Key('open-report')),
+          repository.can(Capability.report) ? findsOneWidget : findsNothing,
+        );
+        expect(
+          find.text(
+            repository.currentUser.rolesLabelForWard(repository.activeWard.id),
+          ),
+          findsWidgets,
+        );
+        expect(find.text('Demo persona'), findsNothing);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.runAsync(repository.close);
+      },
+    );
+  }
 
   test(
     'coordinator manages ward operations without assigning professional access',

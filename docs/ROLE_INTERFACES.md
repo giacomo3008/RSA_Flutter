@@ -25,3 +25,5 @@ Clinical document transcription confirmation is distinct from physician validati
 Service integrations display configuration requirements, not fabricated live connection status. No external SSO, push, LLM or OCR provider is contacted by these role interfaces.
 
 References: RSA_agentic_AI R2–R6, R33–R36, UC11–UC12, QA5; plan_0 “Roles and permissions”, p. 11.
+
+Seven positive navigation checks open each role's actual workspace through the application's route guards, alongside the existing permission-denial tests. Shared care screens for nurse, healthcare assistant and technician are intentional: their action permissions differ, while physician, coordinator, management and administrator also have dedicated areas. No role selector or impersonation control is added to the official UI.

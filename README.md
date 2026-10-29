@@ -116,7 +116,7 @@ flutter drive --driver=test_driver/integration_test.dart \
   --chrome-binary=/path/to/chrome --headless
 ```
 
-In the cloud, Chromium is `/usr/bin/chromium`; add `--web-browser-flag=--no-sandbox --web-browser-flag=--disable-dev-shm-usage`. The isolated integration browser resets synthetic data in its own origin/profile. Unit/widget tests use an independent database. The cloud verification passed **86 unit/widget tests**, the browser integration flow, the release build and offline-reopening smoke check. See [verification results](docs/VERIFICATION.md) for actual outcomes, and [scope checklist](docs/CHECKLIST.md) for limitations.
+In the cloud, Chromium is `/usr/bin/chromium`; add `--web-browser-flag=--no-sandbox --web-browser-flag=--disable-dev-shm-usage`. The isolated integration browser resets synthetic data in its own origin/profile. Unit/widget tests use an independent database. The cloud verification passed **101 unit/widget tests**, the browser integration flow, the release build and offline-reopening smoke check. See [verification results](docs/VERIFICATION.md) for actual outcomes, and [scope checklist](docs/CHECKLIST.md) for limitations.
 
 ## Prototype boundaries
 
@@ -132,6 +132,8 @@ Backlog: FHIR connectors; no-code routing editor; forecasting/advanced workload 
 
 ![RSA desktop workspace](docs/screenshots/desktop.png)
 
-Workspace screenshots: [Handover desktop](docs/screenshots/handover-desktop.png) · [Document review](docs/screenshots/documents-desktop.png) · [Conversations](docs/screenshots/conversations-desktop.png).
+Workspace screenshots: [Handover desktop](docs/screenshots/handover-desktop.png) · [Report cards](docs/screenshots/handover-record-desktop.png) · [Version history](docs/screenshots/handover-history-desktop.png) · [Document review](docs/screenshots/documents-desktop.png) · [Conversations](docs/screenshots/conversations-desktop.png).
 
 Phone screenshots: [Handover](docs/screenshots/handover-mobile.png) · [Home](docs/screenshots/home-mobile.png) · [Rapid reporting](docs/screenshots/report-mobile.png).
+
+The handover record now uses color-coded report cards and a grouped version timeline. Staff can send post-signature updates for coordinator review; the signed document remains unchanged until a coordinator includes those updates in a new draft version. See [handover workflow](docs/HANDOVER.md).
