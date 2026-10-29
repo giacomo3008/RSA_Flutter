@@ -118,6 +118,56 @@ class AccountScreen extends ConsumerWidget {
             ],
           ),
         ),
+        const SizedBox(height: 20),
+        SectionCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Account session',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Log out to return to the login page.',
+                style: TextStyle(color: muted),
+              ),
+              const SizedBox(height: 18),
+              OutlinedButton.icon(
+                key: const Key('account-log-out'),
+                icon: const Icon(Icons.logout_outlined),
+                label: const Text('Log out'),
+                onPressed: () async {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      key: const Key('logout-confirmation'),
+                      title: const Text('Log out?'),
+                      content: const Text(
+                        'You will return to the login page. You can log in again to open your workspace.',
+                      ),
+                      actions: [
+                        TextButton(
+                          key: const Key('logout-cancel'),
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Stay signed in'),
+                        ),
+                        FilledButton(
+                          key: const Key('logout-confirm'),
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('Log out'),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirmed == true && context.mounted) {
+                    ref.read(accessSessionProvider).logout();
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
         const SizedBox(height: 24),
       ],
     );

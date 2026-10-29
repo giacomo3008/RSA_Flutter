@@ -5,9 +5,9 @@ Workspace redesign checked on 28 October 2026; handover presentation, staff-upda
 | Check | Actual result |
 | --- | --- |
 | `flutter pub get` / `flutter gen-l10n` | Passed; lockfile and generated ARB accessors included. |
-| `dart format --output=none --set-exit-if-changed lib test integration_test test_driver` | Passed; 40 Dart files, no formatting changes. |
+| `dart format --output=none --set-exit-if-changed lib test integration_test test_driver` | Passed; 43 Dart files, no formatting changes. |
 | `flutter analyze` | Passed: no issues. |
-| `flutter test --reporter expanded` | **101 passed**: 57 domain/persistence tests and 44 widget tests. No skipped tests. |
+| `flutter test --reporter expanded` | **110 passed**: 57 domain/persistence tests and 53 widget tests. No skipped tests. |
 | Browser integration through Flutter drive | **1 passed**, zero framework errors. Actual UI report → inbox → event conversation (does not claim) → explicit claim → saved correction with safe dialog dismissal → diary → handover sources/amendment. |
 | `./tool/build_web.sh` | Passed release web compilation, local engine/font assets, 46-file static-shell cache. The compiler's optional WASM dry run also succeeded; a dedicated `--wasm` deployment was not exercised. |
 | `python3 tool/smoke_web.py` against the served release build | Passed handover/document/conversation page navigation, hidden unopened event discussions, startup, real attendance change, refresh persistence, service-worker installation, complete offline reopening, 390px mobile navigation/report and no JavaScript page errors. |
@@ -55,3 +55,11 @@ Release screenshots include handover on desktop/mobile, Document review and Conv
 The 29 October checks add seven positive role-navigation cases and eight focused handover checks: pending updates preserve every signed field, unauthorized inclusion is denied, coordinator inclusion preserves authors/times and archived receipts, stale record/version submissions fail, SQLite reopening retains pending updates, signed staff can submit through the visible input, coordinators include updates through the visible button, grouped history avoids duplicate version cards and signed report cards retain their historical status after live closure.
 
 The release browser check also types and submits an update, reloads the handover and checks that version 1 remains signed. Updated screenshots include report cards and the grouped history. The browser integration completed with frameworkErrors empty. All seven role pages are also covered by the existing narrow-screen checks.
+
+## Public access and first chat opening
+
+Nine widget regressions cover default login, signed-out clinical/administrative/unknown URL guards, empty-field entry as Emily even when a different local account was selected previously, registration navigation, logout cancellation and confirmation with cleared navigation, both access forms at 320px with enlarged text, and immediate first conversation opening on phone and desktop with a long thread. Chat routes use NoTransitionPage and the reverse viewport starts at its minimum extent before later frames.
+
+Existing care and role workflow tests explicitly inject an authenticated fixture session; the production provider remains signed out by default. No user-facing role selector or credential-validation claim was introduced.
+
+The release-browser check covers login/registration, no-data login, first conversation opening, logout confirmation/cancellation, browser Back and direct URL denial while signed out, and renewed frontend entry after full reload. Record persistence and offline reopening are checked after entering through the public login page. The temporary session is intentionally not persisted and no backend authentication or account creation is performed.

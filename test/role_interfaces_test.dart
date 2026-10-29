@@ -7,6 +7,7 @@ import 'package:rsa/app/app.dart';
 import 'package:rsa/core/database.dart';
 import 'package:rsa/core/models.dart';
 import 'package:rsa/core/providers.dart';
+import 'package:rsa/core/session.dart';
 import 'package:rsa/core/repository.dart';
 import 'package:rsa/features/physician.dart';
 import 'package:rsa/features/workspace.dart';
@@ -45,6 +46,9 @@ void main() {
           ProviderScope(
             overrides: [
               rsaRepositoryProvider.overrideWith((ref) => repository),
+              accessSessionProvider.overrideWith(
+                (ref) => AccessSession(signedIn: true),
+              ),
             ],
             child: RsaApp(initialLocation: account.$2),
           ),
@@ -218,6 +222,9 @@ void main() {
           ProviderScope(
             overrides: [
               rsaRepositoryProvider.overrideWith((ref) => repository),
+              accessSessionProvider.overrideWith(
+                (ref) => AccessSession(signedIn: true),
+              ),
             ],
             child: MaterialApp(home: Scaffold(body: screen)),
           ),

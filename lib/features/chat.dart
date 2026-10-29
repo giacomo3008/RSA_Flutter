@@ -364,12 +364,12 @@ class _ConversationThread extends ConsumerStatefulWidget {
 class _ConversationThreadState extends ConsumerState<_ConversationThread> {
   final TextEditingController _composer = TextEditingController();
   final TextEditingController _search = TextEditingController();
-  final ScrollController _scroll = ScrollController();
+  final ScrollController _scroll = ScrollController(keepScrollOffset: false);
   Message? _reply;
   MediaPayload? _attachment;
   String? _storedMediaId;
   bool _sending = false, _searching = false;
-  int _messageCount = 0;
+  int? _messageCount;
   Timer? _draftDebounce;
   late final RsaRepository _repository;
   late final String _ownerId;
@@ -533,7 +533,7 @@ class _ConversationThreadState extends ConsumerState<_ConversationThread> {
   void _scrollToEnd() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _scroll.hasClients) {
-        _scroll.jumpTo(_scroll.position.maxScrollExtent);
+        _scroll.jumpTo(_scroll.position.minScrollExtent);
       }
     });
   }
@@ -558,8 +558,9 @@ class _ConversationThreadState extends ConsumerState<_ConversationThread> {
     final allMessages = repo.messagesFor(widget.conversation.id);
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     if (allMessages.length != _messageCount) {
+      final initialLayout = _messageCount == null;
       _messageCount = allMessages.length;
-      _scrollToEnd();
+      if (!initialLayout) _scrollToEnd();
     }
     final query = _search.text.trim().toLowerCase();
     final messages = allMessages
@@ -700,14 +701,16 @@ class _ConversationThreadState extends ConsumerState<_ConversationThread> {
                         ),
                       )
               : ListView.builder(
+                  key: const Key('conversation-messages'),
                   controller: _scroll,
+                  reverse: true,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 18,
                     vertical: 20,
                   ),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
-                    final message = messages[index];
+                    final message = messages[messages.length - 1 - index];
                     final author = repo.staffForDisplay(message.authorId);
                     final mine = message.authorId == repo.currentUser.id;
                     final replied = message.replyTo == null

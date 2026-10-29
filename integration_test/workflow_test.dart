@@ -6,6 +6,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:rsa/app/app.dart';
 import 'package:rsa/core/models.dart';
 import 'package:rsa/core/providers.dart';
+import 'package:rsa/core/session.dart';
 import 'package:rsa/core/repository.dart';
 import 'package:rsa/features/events.dart';
 import 'package:rsa/shared/ui.dart';
@@ -35,7 +36,12 @@ void main() {
         'Synthetic integration report ${repository.now.toIso8601String()}';
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [rsaRepositoryProvider.overrideWith((ref) => repository)],
+        overrides: [
+          rsaRepositoryProvider.overrideWith((ref) => repository),
+          accessSessionProvider.overrideWith(
+            (ref) => AccessSession(signedIn: true),
+          ),
+        ],
         child: const RsaApp(initialLocation: '/report'),
       ),
     );

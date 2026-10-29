@@ -8,6 +8,7 @@ import 'package:rsa/app/app.dart';
 import 'package:rsa/core/database.dart';
 import 'package:rsa/core/models.dart';
 import 'package:rsa/core/providers.dart';
+import 'package:rsa/core/session.dart';
 import 'package:rsa/core/repository.dart';
 import 'package:rsa/features/events.dart';
 import 'package:rsa/shared/ui.dart';
@@ -42,7 +43,12 @@ void main() {
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [rsaRepositoryProvider.overrideWith((ref) => repository)],
+        overrides: [
+          rsaRepositoryProvider.overrideWith((ref) => repository),
+          accessSessionProvider.overrideWith(
+            (ref) => AccessSession(signedIn: true),
+          ),
+        ],
         child: RsaApp(initialLocation: location),
       ),
     );

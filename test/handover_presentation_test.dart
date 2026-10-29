@@ -9,6 +9,7 @@ import 'package:rsa/app/app.dart';
 import 'package:rsa/core/database.dart';
 import 'package:rsa/core/models.dart';
 import 'package:rsa/core/providers.dart';
+import 'package:rsa/core/session.dart';
 import 'package:rsa/core/repository.dart';
 import 'package:rsa/features/handover_history.dart';
 import 'package:rsa/features/handover_record_content.dart';
@@ -136,7 +137,12 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [rsaRepositoryProvider.overrideWith((ref) => r)],
+        overrides: [
+          rsaRepositoryProvider.overrideWith((ref) => r),
+          accessSessionProvider.overrideWith(
+            (ref) => AccessSession(signedIn: true),
+          ),
+        ],
         child: const RsaApp(initialLocation: '/handover'),
       ),
     );
